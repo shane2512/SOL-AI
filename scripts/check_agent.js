@@ -1,7 +1,7 @@
 // Script to check if the agent is running
 const fetch = require('node-fetch');
 
-const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL || 'https://your-render-app.onrender.com';
+const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL || 'https://sol-ai-moderator-agent.onrender.com';
 
 async function checkAgent() {
   console.log('🤖 Checking AI Agent Status...\n');
