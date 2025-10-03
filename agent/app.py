@@ -257,7 +257,7 @@ def start_monitoring():
     if monitoring_active:
         return jsonify({"message": "Monitoring already active"}), 200
     
-    if not all([w3, social, moderator, acct, clf]):
+    if not all([w3, social, moderator, acct]):
         return jsonify({"error": "Service not properly configured"}), 500
     
     monitoring_active = True
@@ -304,7 +304,7 @@ def moderate_text():
 
 if __name__ == '__main__':
     # Auto-start monitoring if all components are available
-    if all([w3, social, moderator, acct, clf]):
+    if all([w3, social, moderator, acct]):
         monitoring_active = True
         agent_stats["status"] = "running"
         monitor_thread = threading.Thread(target=monitoring_loop, daemon=True)
@@ -312,6 +312,7 @@ if __name__ == '__main__':
         print("Auto-started monitoring")
     else:
         print("Warning: Not all components available, monitoring not auto-started")
+        print(f"Components status: w3={w3 is not None}, social={social is not None}, moderator={moderator is not None}, acct={acct is not None}")
     
     # Run Flask app
     port = int(os.environ.get('PORT', 5000))
