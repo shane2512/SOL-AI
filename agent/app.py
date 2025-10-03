@@ -44,7 +44,7 @@ SOCIAL_ADDR = Web3.to_checksum_address(os.getenv("SOCIAL_POSTS_ADDRESS", "0x0000
 MODERATOR_ADDR = Web3.to_checksum_address(os.getenv("MODERATOR_ADDRESS", "0x0000000000000000000000000000000000000000"))
 AGENT_PRIV = os.getenv("AGENT_PRIVATE_KEY", "")
 MODEL_NAME = os.getenv("MODEL_NAME", "unitary/toxic-bert")
-THRESHOLD_BP = int(os.getenv("TOXICITY_THRESHOLD_BP", "5000"))
+THRESHOLD_BP = int(os.getenv("TOXICITY_THRESHOLD_BP", "2500"))  # Lowered to 25%
 
 # Global variables for monitoring
 monitoring_active = False

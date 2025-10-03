@@ -44,16 +44,16 @@ async function verifyPosts() {
         
         // Get post details
         const post = await socialContract.getPost(i);
-        const [id, author, content, timestamp, flagged] = post;
+        // Contract returns: [id, author, content, flagged] (no timestamp in this version)
+        const [id, author, content, flagged] = post;
 
         console.log(`📝 Content: "${content}"`);
         console.log(`👤 Author: ${author}`);
-        console.log(`⏰ Timestamp: ${new Date(Number(timestamp) * 1000).toLocaleString()}`);
         console.log(`🚩 Flagged: ${flagged ? '✅ YES' : '❌ NO'}`);
 
         // Analyze content for toxicity (same logic as agent)
         const toxicityScore = analyzeToxicity(content);
-        const shouldBeFlagged = toxicityScore >= 5000; // 50% threshold
+        const shouldBeFlagged = toxicityScore >= 2500; // 25% threshold (lowered)
         
         console.log(`🧠 Toxicity Score: ${toxicityScore} BP (${(toxicityScore/100).toFixed(1)}%)`);
         console.log(`🎯 Should be flagged: ${shouldBeFlagged ? '✅ YES' : '❌ NO'}`);
