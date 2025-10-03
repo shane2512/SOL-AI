@@ -170,6 +170,19 @@ SOL-AI/
 - Agent private key should have minimal permissions
 - Test thoroughly on testnet before mainnet
 
+## 🚀 Production Deployment
+
+This project uses a **dual-deployment architecture**:
+
+- **🌐 Frontend**: Deployed on [Vercel](https://vercel.com) (Next.js app)
+- **🤖 AI Agent**: Deployed on [Render](https://render.com) (Python background worker)
+
+### Quick Deploy
+1. **Frontend**: Connect your GitHub repo to Vercel, set root directory to `app/`
+2. **Agent**: Deploy as Render Background Worker with `render.yaml`
+
+📖 **Full deployment guide**: See [DEPLOYMENT.md](./DEPLOYMENT.md)
+
 ## 🤝 Contributing
 
 1. Fork the repository
