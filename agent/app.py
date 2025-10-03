@@ -8,10 +8,20 @@ from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 from transformers import pipeline
 from web3 import Web3
+# Handle different Web3.py versions
+geth_poa_middleware = None
 try:
     from web3.middleware import geth_poa_middleware
 except ImportError:
-    from web3.middleware.geth_poa import geth_poa_middleware
+    try:
+        from web3.middleware.geth_poa import geth_poa_middleware
+    except ImportError:
+        try:
+            from web3 import middleware
+            geth_poa_middleware = middleware.geth_poa_middleware
+        except (ImportError, AttributeError):
+            print("Warning: Could not import geth_poa_middleware, continuing without it")
+            geth_poa_middleware = None
 
 # Load env
 load_dotenv()
@@ -54,8 +64,14 @@ except Exception as e:
 
 # Web3 setup
 w3 = Web3(Web3.HTTPProvider(SOMNIA_RPC_URL)) if SOMNIA_RPC_URL else None
-if w3:
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+if w3 and geth_poa_middleware:
+    try:
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        print("PoA middleware injected successfully")
+    except Exception as e:
+        print(f"Warning: Could not inject PoA middleware: {e}")
+elif w3:
+    print("Warning: PoA middleware not available, continuing without it")
 
 acct = None
 if AGENT_PRIV and w3:
