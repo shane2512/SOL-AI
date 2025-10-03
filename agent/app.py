@@ -122,8 +122,8 @@ def score_toxicity(text: str) -> int:
     if not clf:
         # Enhanced keyword-based detection
         toxic_keywords = {
-            'high': ['kill', 'die', 'murder', 'suicide', 'terrorist', 'bomb', 'weapon'],
-            'medium': ['hate', 'stupid', 'idiot', 'moron', 'loser', 'pathetic', 'disgusting'],
+            'high': ['kill', 'die', 'murder', 'suicide', 'terrorist', 'bomb', 'weapon', 'fuck'],
+            'medium': ['hate', 'stupid', 'idiot', 'moron', 'loser', 'pathetic', 'disgusting', 'bastard', 'bloody'],
             'low': ['damn', 'hell', 'crap', 'sucks', 'annoying', 'boring']
         }
         

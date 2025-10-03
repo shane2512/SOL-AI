@@ -1,0 +1,13 @@
+{
+  "name": "verification-scripts",
+  "version": "1.0.0",
+  "description": "Scripts to verify posts and flagging",
+  "main": "verify_posts.js",
+  "scripts": {
+    "verify": "node verify_posts.js"
+  },
+  "dependencies": {
+    "ethers": "^6.10.0",
+    "dotenv": "^16.0.0"
+  }
+}
