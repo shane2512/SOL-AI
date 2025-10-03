@@ -1,0 +1,24 @@
+services:
+  - type: worker
+    name: sol-ai-moderator-agent
+    env: python
+    buildCommand: "cd agent && pip install -r requirements.txt"
+    startCommand: "cd agent && python agent.py"
+    plan: starter
+    envVars:
+      - key: SOMNIA_RPC_URL
+        value: https://dream-rpc.somnia.network
+      - key: SOMNIA_WSS_URL
+        value: wss://dream-rpc.somnia.network/ws
+      - key: CHAIN_ID
+        value: "50312"
+      - key: SOCIAL_POSTS_ADDRESS
+        sync: false
+      - key: MODERATOR_ADDRESS
+        sync: false
+      - key: AGENT_PRIVATE_KEY
+        sync: false
+      - key: MODEL_NAME
+        value: unitary/toxic-bert
+      - key: TOXICITY_THRESHOLD_BP
+        value: "5000"
