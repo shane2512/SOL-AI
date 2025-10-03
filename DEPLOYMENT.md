@@ -30,6 +30,7 @@ This project uses a **dual-deployment architecture**:
    NEXT_PUBLIC_SOMNIA_CHAIN_ID=50312
    NEXT_PUBLIC_SOMNIA_RPC_URL=https://dream-rpc.somnia.network
    NEXT_PUBLIC_SOMNIA_WSS_URL=wss://dream-rpc.somnia.network/ws
+   NEXT_PUBLIC_AGENT_URL=https://your-render-app.onrender.com
    ```
 
 6. Click "Deploy"

@@ -5,6 +5,7 @@ import threading
 from decimal import Decimal
 from pathlib import Path
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from dotenv import load_dotenv
 # Conditional import for transformers (heavy dependency)
 try:
@@ -33,6 +34,7 @@ except ImportError:
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend communication
 
 # Configuration
 SOMNIA_RPC_URL = os.getenv("SOMNIA_RPC_URL", "")

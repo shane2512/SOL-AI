@@ -1,3 +1,5 @@
+import AgentStatus from '../components/AgentStatus';
+
 export const metadata = { title: 'Somnia AI Moderation' };
 
 export default function RootLayout({ children }) {
@@ -47,6 +49,7 @@ export default function RootLayout({ children }) {
           </div>
           {children}
         </div>
+        <AgentStatus />
       </body>
     </html>
   );
