@@ -8,7 +8,10 @@ from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 from transformers import pipeline
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
+try:
+    from web3.middleware import geth_poa_middleware
+except ImportError:
+    from web3.middleware.geth_poa import geth_poa_middleware
 
 # Load env
 load_dotenv()
@@ -74,10 +77,18 @@ if w3 and SOCIAL_ABI and MOD_ABI:
 # Initialize AI model
 clf = None
 try:
-    clf = pipeline("text-classification", model=MODEL_NAME, truncation=True, framework="pt")
+    # Try to load the model with CPU-only configuration for Render
+    clf = pipeline(
+        "text-classification", 
+        model=MODEL_NAME, 
+        truncation=True, 
+        framework="pt",
+        device=-1  # Force CPU usage
+    )
     print(f"AI model loaded: {MODEL_NAME}")
 except Exception as e:
     print(f"Warning: Could not load AI model: {e}")
+    print("Falling back to keyword-based detection")
 
 def score_toxicity(text: str) -> int:
     """Score toxicity of text, return basis points (0-10000)"""
