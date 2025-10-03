@@ -15,12 +15,5 @@
       "src": "/(.*)",
       "dest": "/app/$1"
     }
-  ],
-  "env": {
-    "NEXT_PUBLIC_SOCIAL_POSTS_ADDRESS": "@social_posts_address",
-    "NEXT_PUBLIC_MODERATOR_ADDRESS": "@moderator_address",
-    "NEXT_PUBLIC_SOMNIA_CHAIN_ID": "@somnia_chain_id",
-    "NEXT_PUBLIC_SOMNIA_RPC_URL": "@somnia_rpc_url",
-    "NEXT_PUBLIC_SOMNIA_WSS_URL": "@somnia_wss_url"
-  }
+  ]
 }
