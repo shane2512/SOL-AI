@@ -60,13 +60,14 @@ vercel --prod
 
 ### Method 1: Render Dashboard
 1. Go to [render.com/dashboard](https://render.com/dashboard)
-2. Click "New +" → "Background Worker"
+2. Click "New +" → "Web Service" (FREE TIER AVAILABLE)
 3. Connect your Git repository
 4. **Configure Service**:
    - **Name**: `sol-ai-moderator-agent`
+   - **Root Directory**: `agent`
    - **Environment**: `Python 3`
-   - **Build Command**: `cd agent && pip install -r requirements.txt`
-   - **Start Command**: `cd agent && python agent.py`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn --bind 0.0.0.0:$PORT app:app`
 
 5. **Environment Variables**:
    ```
@@ -80,7 +81,7 @@ vercel --prod
    TOXICITY_THRESHOLD_BP=5000
    ```
 
-6. Click "Create Background Worker"
+6. Click "Create Web Service"
 
 ### Method 2: Render Blueprint (render.yaml)
 1. Push the `render.yaml` file to your repository

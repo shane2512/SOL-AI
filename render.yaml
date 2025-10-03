@@ -1,9 +1,10 @@
 services:
-  - type: worker
+  - type: web
     name: sol-ai-moderator-agent
     env: python
-    buildCommand: "cd agent && pip install -r requirements.txt"
-    startCommand: "cd agent && python agent.py"
+    rootDir: agent
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn --bind 0.0.0.0:$PORT app:app"
     plan: starter
     envVars:
       - key: SOMNIA_RPC_URL
