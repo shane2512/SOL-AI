@@ -1,3 +1,5 @@
+'use client';
+
 // Agent API utilities for connecting to Render-deployed agent
 const AGENT_URL = process.env.NEXT_PUBLIC_AGENT_URL;
 
