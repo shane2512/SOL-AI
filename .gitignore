@@ -12,11 +12,14 @@ build/
 dist/
 
 # Environment variables
-.env*
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+*.env
+!.env.example
+
 
 # IDE and editor files
 .vscode/
@@ -140,9 +143,11 @@ tmp/
 temp/
 
 # Agent specific
+agent/.last_block
 agent/last_block.txt
 agent/*.model
 agent/models/
+.last_block
 
 # Contract deployment artifacts
 contracts/deployments/
