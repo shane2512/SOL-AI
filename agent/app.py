@@ -6,7 +6,13 @@ from decimal import Decimal
 from pathlib import Path
 from flask import Flask, jsonify, request
 from dotenv import load_dotenv
-from transformers import pipeline
+# Conditional import for transformers (heavy dependency)
+try:
+    from transformers import pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    print("Transformers not available, using lightweight detection")
 from web3 import Web3
 # Handle different Web3.py versions
 geth_poa_middleware = None
@@ -90,30 +96,55 @@ if w3 and SOCIAL_ABI and MOD_ABI:
     except Exception as e:
         print(f"Warning: Could not initialize contracts: {e}")
 
-# Initialize AI model
+# Initialize AI model (lightweight for Render's memory limits)
 clf = None
-try:
-    # Try to load the model with CPU-only configuration for Render
-    clf = pipeline(
-        "text-classification", 
-        model=MODEL_NAME, 
-        truncation=True, 
-        framework="pt",
-        device=-1  # Force CPU usage
-    )
-    print(f"AI model loaded: {MODEL_NAME}")
-except Exception as e:
-    print(f"Warning: Could not load AI model: {e}")
-    print("Falling back to keyword-based detection")
+if TRANSFORMERS_AVAILABLE and os.getenv("ENABLE_AI_MODEL", "false").lower() == "true":
+    try:
+        # Only load if explicitly enabled and transformers is available
+        clf = pipeline(
+            "text-classification", 
+            model=MODEL_NAME, 
+            truncation=True, 
+            framework="pt",
+            device=-1  # Force CPU usage
+        )
+        print(f"AI model loaded: {MODEL_NAME}")
+    except Exception as e:
+        print(f"Warning: Could not load AI model: {e}")
+        print("Falling back to keyword-based detection")
+else:
+    print("Using lightweight keyword-based detection (AI model disabled for memory efficiency)")
 
 def score_toxicity(text: str) -> int:
     """Score toxicity of text, return basis points (0-10000)"""
     if not clf:
-        # Fallback: simple keyword detection
-        toxic_keywords = ['hate', 'stupid', 'idiot', 'kill', 'die', 'toxic', 'damn']
+        # Enhanced keyword-based detection
+        toxic_keywords = {
+            'high': ['kill', 'die', 'murder', 'suicide', 'terrorist', 'bomb', 'weapon'],
+            'medium': ['hate', 'stupid', 'idiot', 'moron', 'loser', 'pathetic', 'disgusting'],
+            'low': ['damn', 'hell', 'crap', 'sucks', 'annoying', 'boring']
+        }
+        
         lower_text = text.lower()
-        found_keywords = [kw for kw in toxic_keywords if kw in lower_text]
-        return 8000 if found_keywords else 1000  # 80% if toxic keywords found, 10% otherwise
+        score = 500  # Base score (5%)
+        
+        # Check for high toxicity keywords
+        for keyword in toxic_keywords['high']:
+            if keyword in lower_text:
+                score += 2500  # Add 25% per high-toxicity word
+        
+        # Check for medium toxicity keywords  
+        for keyword in toxic_keywords['medium']:
+            if keyword in lower_text:
+                score += 1500  # Add 15% per medium-toxicity word
+                
+        # Check for low toxicity keywords
+        for keyword in toxic_keywords['low']:
+            if keyword in lower_text:
+                score += 800   # Add 8% per low-toxicity word
+        
+        # Cap at 9500 (95%)
+        return min(score, 9500)
     
     try:
         res = clf(text)[0]
