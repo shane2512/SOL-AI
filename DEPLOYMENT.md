@@ -64,32 +64,47 @@ vercel --prod
 2. Click "New +" → "Web Service" (FREE TIER AVAILABLE)
 3. Connect your Git repository
 4. **Configure Service**:
-   - **Name**: `sol-ai-moderator-agent`
    - **Root Directory**: `agent`
    - **Environment**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt`
    - **Start Command**: `gunicorn --bind 0.0.0.0:$PORT app:app`
 
-5. **Environment Variables**:
-   ```
-   SOMNIA_RPC_URL=https://dream-rpc.somnia.network
-   SOMNIA_WSS_URL=wss://dream-rpc.somnia.network/ws
-   CHAIN_ID=50312
-   SOCIAL_POSTS_ADDRESS=0xf88B9e01A9B350E05cD8971DdDF7fC2c73910352
-   MODERATOR_ADDRESS=0x7f37417F66eA2b322CDF145DFd0b45ff1794bf36
-   AGENT_PRIVATE_KEY=your_agent_private_key_here
-   MODEL_NAME=unitary/toxic-bert
-   TOXICITY_THRESHOLD_BP=5000
-   ```
+5. **Environment Variables**: Set via Render dashboard:
+     ```
+     SOMNIA_RPC_URL=https://dream-rpc.somnia.network
+     SOMNIA_WSS_URL=wss://dream-rpc.somnia.network/ws
+     CHAIN_ID=50312
+     SOCIAL_POSTS_ADDRESS=0xf88B9e01A9B350E05cD8971DdDF7fC2c73910352
+     MODERATOR_ADDRESS=0x7f37417F66eA2b322CDF145DFd0b45ff1794bf36
+     AGENT_PRIVATE_KEY=your_private_key_here
+     MODEL_NAME=gemini-1.5-flash
+     GEMINI_API_KEY=your_gemini_api_key_here
+     TOXICITY_THRESHOLD_BP=2500
+     ```
 
 6. Click "Create Web Service"
 
 ### Method 2: Render Blueprint (render.yaml)
 1. Push the `render.yaml` file to your repository
-2. In Render Dashboard, click "New +" → "Blueprint"
 3. Connect your repository
 4. Render will automatically detect the `render.yaml` configuration
 5. Set the environment variables in the Render dashboard
+
+## 🤖 AI Model Setup (Gemini API)
+
+### Getting Gemini API Key
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy the API key and add it to your environment variables
+5. **Free Tier**: 15 requests per minute, 1500 requests per day
+
+### Benefits of Gemini Integration
+- ✅ **Lightweight**: No heavy model downloads (saves 2GB+ memory)
+- ✅ **Accurate**: Context-aware toxicity detection
+- ✅ **Fast**: Real-time API responses
+- ✅ **Cost-effective**: Free tier available
+- ✅ **Scalable**: No local compute requirements
 
 ## 🔐 Security Checklist
 

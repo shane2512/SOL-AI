@@ -22,4 +22,6 @@ services:
       - key: AGENT_PRIVATE_KEY
         sync: false
       - key: MODEL_NAME
-        value: unitary/toxic-bert
+        value: gemini-1.5-flash
+      - key: GEMINI_API_KEY
+        sync: false

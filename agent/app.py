@@ -7,13 +7,16 @@ from pathlib import Path
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
-# Conditional import for transformers (heavy dependency)
+# Lightweight AI API imports
 try:
-    from transformers import pipeline
-    TRANSFORMERS_AVAILABLE = True
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
 except ImportError:
-    TRANSFORMERS_AVAILABLE = False
-    print("Transformers not available, using lightweight detection")
+    GEMINI_AVAILABLE = False
+    print("Gemini API not available, using keyword detection")
+
+# Conditional import for transformers (heavy dependency - disabled by default)
+TRANSFORMERS_AVAILABLE = False  # Disabled to save memory
 from web3 import Web3
 # Handle different Web3.py versions
 geth_poa_middleware = None
@@ -43,7 +46,8 @@ CHAIN_ID = int(os.getenv("CHAIN_ID", "0") or 0)
 SOCIAL_ADDR = Web3.to_checksum_address(os.getenv("SOCIAL_POSTS_ADDRESS", "0x0000000000000000000000000000000000000000"))
 MODERATOR_ADDR = Web3.to_checksum_address(os.getenv("MODERATOR_ADDRESS", "0x0000000000000000000000000000000000000000"))
 AGENT_PRIV = os.getenv("AGENT_PRIVATE_KEY", "")
-MODEL_NAME = os.getenv("MODEL_NAME", "unitary/toxic-bert")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-1.5-flash")  # Lightweight Gemini model
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 THRESHOLD_BP = int(os.getenv("TOXICITY_THRESHOLD_BP", "2500"))  # Lowered to 25%
 
 # Global variables for monitoring
@@ -95,31 +99,65 @@ if w3 and SOCIAL_ABI and MOD_ABI:
     try:
         social = w3.eth.contract(address=SOCIAL_ADDR, abi=SOCIAL_ABI)
         moderator = w3.eth.contract(address=MODERATOR_ADDR, abi=MOD_ABI)
+        print("Contracts initialized successfully")
     except Exception as e:
         print(f"Warning: Could not initialize contracts: {e}")
 
-# Initialize AI model (lightweight for Render's memory limits)
-clf = None
-if TRANSFORMERS_AVAILABLE and os.getenv("ENABLE_AI_MODEL", "false").lower() == "true":
+# Initialize Gemini AI model (lightweight API-based)
+gemini_model = None
+if GEMINI_AVAILABLE and GEMINI_API_KEY:
     try:
-        # Only load if explicitly enabled and transformers is available
-        clf = pipeline(
-            "text-classification", 
-            model=MODEL_NAME, 
-            truncation=True, 
-            framework="pt",
-            device=-1  # Force CPU usage
-        )
-        print(f"AI model loaded: {MODEL_NAME}")
+        genai.configure(api_key=GEMINI_API_KEY)
+        gemini_model = genai.GenerativeModel(MODEL_NAME)
+        print(f"Gemini AI model initialized: {MODEL_NAME}")
     except Exception as e:
-        print(f"Warning: Could not load AI model: {e}")
+        print(f"Warning: Could not initialize Gemini model: {e}")
         print("Falling back to keyword-based detection")
 else:
-    print("Using lightweight keyword-based detection (AI model disabled for memory efficiency)")
+    if not GEMINI_API_KEY:
+        print("GEMINI_API_KEY not provided, using keyword-based detection")
+    else:
+        print("Gemini not available, using keyword-based detection")
 
 def score_toxicity(text: str) -> int:
     """Score toxicity of text, return basis points (0-10000)"""
-    if not clf:
+    
+    # Try Gemini API first (lightweight and accurate)
+    if gemini_model:
+        try:
+            prompt = f"""
+Analyze the toxicity level of this text: "{text}"
+
+Rate the toxicity on a scale of 0-100 where:
+- 0-20: Clean/Safe content
+- 21-40: Mildly inappropriate 
+- 41-60: Moderately toxic
+- 61-80: Highly toxic
+- 81-100: Extremely toxic/harmful
+
+Consider factors like:
+- Profanity and offensive language
+- Hate speech or discrimination
+- Violence or threats
+- Harassment or bullying
+
+Respond with ONLY a number between 0-100, nothing else.
+"""
+            
+            response = gemini_model.generate_content(prompt)
+            toxicity_percentage = int(response.text.strip())
+            
+            # Convert to basis points (0-10000)
+            toxicity_bp = min(max(toxicity_percentage * 100, 0), 10000)
+            
+            print(f"Gemini toxicity analysis: {toxicity_percentage}% ({toxicity_bp} BP)")
+            return toxicity_bp
+            
+        except Exception as e:
+            print(f"Gemini API error: {e}, falling back to keyword detection")
+    
+    # Fallback to keyword-based detection
+    if True:
         # Enhanced keyword-based detection
         toxic_keywords = {
             'high': ['kill', 'die', 'murder', 'suicide', 'terrorist', 'bomb', 'weapon', 'fuck'],
@@ -241,9 +279,10 @@ def health():
     """Detailed health check"""
     return jsonify({
         "status": "healthy",
-        "web3_connected": w3 is not None and w3.is_connected() if w3 else False,
+        "web3_connected": w3 is not None,
         "contracts_loaded": social is not None and moderator is not None,
-        "ai_model_loaded": clf is not None,
+        "ai_model_loaded": gemini_model is not None,
+        "ai_model_type": "gemini" if gemini_model else "keyword-based",
         "agent_account": acct.address if acct else None,
         "monitoring_active": monitoring_active,
         "stats": agent_stats
