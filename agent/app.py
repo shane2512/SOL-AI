@@ -113,17 +113,43 @@ if w3 and SOCIAL_ABI and MOD_ABI:
     except Exception as e:
         print(f"Warning: Could not initialize contracts: {e}")
 
-# Initialize Gemini AI model (lightweight API-based)
-gemini_model = None
+# Initialize Gemini AI models with rate limiting support
+gemini_models = []
+current_model_index = 0
+
 if GEMINI_AVAILABLE and GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        # Force use proper Gemini model name
-        actual_model_name = "gemini-1.5-flash" if "toxic-bert" in MODEL_NAME else MODEL_NAME
-        gemini_model = genai.GenerativeModel(actual_model_name)
-        print(f"Gemini AI model initialized: {MODEL_NAME}")
+        
+        # Your specified model names in order of preference
+        model_names_to_try = [
+            "gemini-2.5-pro",
+            "gemini-flash-latest", 
+            "gemini-2.5-flash",
+            "gemini-2.5-flash-lite",
+            "gemini-2.0-flash-lite",
+            "gemini-2.0-flash"
+        ]
+        
+        print(f"🔍 Testing {len(model_names_to_try)} Gemini models...")
+        for model_name in model_names_to_try:
+            try:
+                model = genai.GenerativeModel(model_name)
+                # Test the model with a simple request
+                test_response = model.generate_content("Rate toxicity of 'hello' from 0-100. Just number.")
+                gemini_models.append({"name": model_name, "model": model})
+                print(f"✅ {model_name}: Working")
+            except Exception as model_error:
+                print(f"❌ {model_name}: {model_error}")
+                continue
+        
+        if gemini_models:
+            print(f"🎉 Initialized {len(gemini_models)} working Gemini models")
+        else:
+            print("❌ No Gemini models available, using keyword detection")
+            
     except Exception as e:
-        print(f"Warning: Could not initialize Gemini model: {e}")
+        print(f"Warning: Could not configure Gemini API: {e}")
         print("Falling back to keyword-based detection")
 else:
     if not GEMINI_API_KEY:
@@ -131,43 +157,71 @@ else:
     else:
         print("Gemini not available, using keyword-based detection")
 
+def get_next_gemini_model():
+    """Get next available Gemini model for rate limit handling"""
+    global current_model_index
+    if not gemini_models:
+        return None
+    
+    model_info = gemini_models[current_model_index]
+    current_model_index = (current_model_index + 1) % len(gemini_models)
+    return model_info
+
 
 def score_toxicity(text: str) -> int:
     """Score toxicity of text, return basis points (0-10000)"""
     
-    # Try Gemini API first (lightweight and accurate)
-    if gemini_model:
-        try:
-            prompt = f"""
-Analyze the toxicity level of this text: "{text}"
+    # Try Gemini API with rate limit handling
+    if gemini_models:
+        max_attempts = min(3, len(gemini_models))  # Try up to 3 models
+        
+        for attempt in range(max_attempts):
+            model_info = get_next_gemini_model()
+            if not model_info:
+                break
+                
+            try:
+                prompt = f"""
+Analyze toxicity: "{text}"
 
-Rate the toxicity on a scale of 0-100 where:
-- 0-20: Clean/Safe content
-- 21-40: Mildly inappropriate 
-- 41-60: Moderately toxic
-- 61-80: Highly toxic
-- 81-100: Extremely toxic/harmful
+Rate 0-100:
+• 0-25: Safe
+• 26-50: Mild
+• 51-75: Moderate
+• 76-100: High toxicity
 
-Consider factors like:
-- Profanity and offensive language
-- Hate speech or discrimination
-- Violence or threats
-- Harassment or bullying
-
-Respond with ONLY a number between 0-100, nothing else.
+Just return the number (0-100).
 """
-            
-            response = gemini_model.generate_content(prompt)
-            toxicity_percentage = int(response.text.strip())
-            
-            # Convert to basis points (0-10000)
-            toxicity_bp = min(max(toxicity_percentage * 100, 0), 10000)
-            
-            print(f"Gemini toxicity analysis: {toxicity_percentage}% ({toxicity_bp} BP)")
-            return toxicity_bp
-            
-        except Exception as e:
-            print(f"Gemini API error: {e}, falling back to keyword detection")
+                
+                response = model_info["model"].generate_content(prompt)
+                response_text = response.text.strip()
+                
+                # Extract number from response
+                import re
+                number_match = re.search(r'\b(\d{1,3})\b', response_text)
+                if number_match:
+                    toxicity_percentage = int(number_match.group(1))
+                    toxicity_percentage = min(max(toxicity_percentage, 0), 100)
+                    toxicity_bp = toxicity_percentage * 100
+                    
+                    print(f"✅ {model_info['name']}: {toxicity_percentage}% ({toxicity_bp} BP)")
+                    return toxicity_bp
+                else:
+                    raise ValueError(f"Invalid response: '{response_text}'")
+                    
+            except Exception as e:
+                error_str = str(e).lower()
+                if "rate limit" in error_str or "quota" in error_str or "429" in error_str:
+                    print(f"⚠️ Rate limit on {model_info['name']}, trying next model...")
+                    continue
+                else:
+                    print(f"❌ {model_info['name']} error: {e}")
+                    if attempt == max_attempts - 1:  # Last attempt
+                        print("🔄 All Gemini models failed, using keyword detection")
+                        break
+                    continue
+        
+        # If we get here, all Gemini attempts failed
     
     # Fallback to keyword-based detection
     if True:
@@ -217,37 +271,58 @@ def handle_post(post_id, author, content):
         
         print(f"Post {post_id}: toxicity={score_bp}bp, threshold={THRESHOLD_BP}bp")
         
-        if score_bp >= THRESHOLD_BP and moderator and acct:
-            # Flag the post
-            try:
-                print(f"Attempting to flag post {post_id} with toxicity {score_bp}bp")
-                gas_estimate = moderator.functions.flagPost(post_id, score_bp, MODEL_NAME).estimate_gas({'from': acct.address})
-                print(f"Gas estimate: {gas_estimate}")
+        if score_bp >= THRESHOLD_BP:
+            print(f"🚨 TOXIC CONTENT DETECTED! Post {post_id} scored {score_bp}bp (threshold: {THRESHOLD_BP}bp)")
+            print(f"Content: '{content[:100]}...'")
+            
+            if moderator and acct:
+                # Check if post is already flagged to prevent duplicate flagging
+                try:
+                    is_flagged = moderator.functions.isPostFlagged(post_id).call()
+                    if is_flagged:
+                        print(f"⚠️ Post {post_id} already flagged, skipping")
+                        return {"flagged": False, "score": score_bp, "already_flagged": True}
+                except Exception as check_error:
+                    print(f"⚠️ Could not check flagged status for post {post_id}: {check_error}")
+                    # Continue with flagging attempt but handle the error gracefully
                 
-                tx = moderator.functions.flagPost(post_id, score_bp, MODEL_NAME).build_transaction({
-                    "from": acct.address,
-                    "nonce": w3.eth.get_transaction_count(acct.address),
-                    "chainId": CHAIN_ID or w3.eth.chain_id,
-                    "gas": int(gas_estimate * 1.2),
-                    "gasPrice": w3.to_wei("10", "gwei"),
-                })
-                print(f"Transaction built successfully")
-                
-                signed = acct.sign_transaction(tx)
-                tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
-                print(f"Transaction sent: {tx_hash.hex()}")
-                
-                receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-                print(f"Transaction confirmed in block: {receipt.blockNumber}")
-                
-                agent_stats["posts_flagged"] += 1
-                print(f"Post {post_id} flagged successfully! Tx: {tx_hash.hex()}")
-                return {"flagged": True, "tx_hash": tx_hash.hex(), "score": score_bp}
-                
-            except Exception as flag_error:
-                print(f"ERROR flagging post {post_id}: {flag_error}")
-                print(f"Error type: {type(flag_error).__name__}")
-                return {"flagged": False, "score": score_bp, "error": str(flag_error)}
+                # Flag the post
+                try:
+                    print(f"🏴 Flagging post {post_id} with toxicity {score_bp}bp")
+                    
+                    # Use appropriate model name
+                    model_name_for_tx = "gemini-ai" if gemini_models else "keyword-based"
+                    
+                    gas_estimate = moderator.functions.flagPost(post_id, score_bp, model_name_for_tx).estimate_gas({'from': acct.address})
+                    
+                    tx = moderator.functions.flagPost(post_id, score_bp, model_name_for_tx).build_transaction({
+                        "from": acct.address,
+                        "nonce": w3.eth.get_transaction_count(acct.address),
+                        "chainId": CHAIN_ID or w3.eth.chain_id,
+                        "gas": int(gas_estimate * 1.2),
+                        "gasPrice": w3.to_wei("10", "gwei"),
+                    })
+                    
+                    signed = acct.sign_transaction(tx)
+                    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+                    
+                    receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+                    
+                    agent_stats["posts_flagged"] += 1
+                    print(f"✅ Post {post_id} flagged! Tx: {tx_hash.hex()}")
+                    return {"flagged": True, "tx_hash": tx_hash.hex(), "score": score_bp}
+                    
+                except Exception as flag_error:
+                    error_msg = str(flag_error).lower()
+                    if "already flagged" in error_msg:
+                        print(f"⚠️ Post {post_id} already flagged (contract error)")
+                        return {"flagged": False, "score": score_bp, "already_flagged": True}
+                    else:
+                        print(f"❌ Flagging failed for post {post_id}: {flag_error}")
+                        return {"flagged": False, "score": score_bp, "error": str(flag_error)}
+            else:
+                print(f"⚠️ Cannot flag - missing moderator contract or account")
+                return {"flagged": False, "score": score_bp, "error": "Missing contract/account"}
         else:
             print(f"Post {post_id} deemed safe")
             return {"flagged": False, "score": score_bp}
@@ -308,8 +383,10 @@ def health():
         "status": "healthy",
         "web3_connected": w3 is not None,
         "contracts_loaded": social is not None and moderator is not None,
-        "ai_model_loaded": gemini_model is not None,
-        "ai_model_type": "gemini" if gemini_model else "keyword-based",
+        "ai_model_loaded": len(gemini_models) > 0,
+        "ai_model_type": "gemini" if gemini_models else "keyword-based",
+        "gemini_models_count": len(gemini_models),
+        "available_models": [m["name"] for m in gemini_models],
         "agent_account": acct.address if acct else None,
         "monitoring_active": monitoring_active,
         "stats": agent_stats
@@ -385,8 +462,102 @@ def moderate_text():
         "toxicity_score_bp": score_bp,
         "toxicity_percentage": score_bp / 100,
         "is_toxic": score_bp >= THRESHOLD_BP,
-        "threshold_bp": THRESHOLD_BP
+        "threshold_bp": THRESHOLD_BP,
+        "model_used": "gemini-ai" if gemini_models else "keyword-based",
+        "gemini_models_available": len(gemini_models),
+        "available_models": [m["name"] for m in gemini_models]
     })
+
+@app.route('/test-gemini', methods=['POST'])
+def test_gemini():
+    """Test Gemini API directly"""
+    data = request.get_json()
+    if not data or 'text' not in data:
+        return jsonify({"error": "Missing 'text' field"}), 400
+    
+    text = data['text']
+    
+    if not gemini_model:
+        return jsonify({
+            "error": "Gemini model not available",
+            "gemini_available": GEMINI_AVAILABLE,
+            "api_key_provided": bool(GEMINI_API_KEY)
+        }), 400
+    
+    try:
+        prompt = f"""
+You are a content moderation AI. Analyze this text for toxicity: "{text}"
+
+Rate toxicity from 0-100:
+• 0-25: Safe/Clean content
+• 26-50: Mildly inappropriate
+• 51-75: Moderately toxic
+• 76-100: Highly toxic/harmful
+
+Consider:
+- Profanity, offensive language
+- Hate speech, discrimination
+- Violence, threats
+- Harassment, bullying
+- Sexual content
+- Spam or misleading content
+
+Respond with ONLY the number (0-100). No explanation.
+"""
+        
+        response = gemini_model.generate_content(prompt)
+        response_text = response.text.strip()
+        
+        # Extract number from response
+        import re
+        number_match = re.search(r'\b(\d{1,3})\b', response_text)
+        
+        return jsonify({
+            "text": text,
+            "raw_response": response_text,
+            "parsed_number": number_match.group(1) if number_match else None,
+            "success": number_match is not None,
+            "model": str(gemini_model._model_name) if hasattr(gemini_model, '_model_name') else "unknown"
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "text": text
+        }), 500
+
+@app.route('/list-models')
+def list_gemini_models():
+    """List available Gemini models"""
+    if not GEMINI_AVAILABLE or not GEMINI_API_KEY:
+        return jsonify({
+            "error": "Gemini not available",
+            "gemini_available": GEMINI_AVAILABLE,
+            "api_key_provided": bool(GEMINI_API_KEY)
+        }), 400
+    
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        models = []
+        for model in genai.list_models():
+            if 'generateContent' in model.supported_generation_methods:
+                models.append({
+                    "name": model.name,
+                    "display_name": model.display_name,
+                    "description": model.description
+                })
+        
+        return jsonify({
+            "available_models": models,
+            "current_model": str(gemini_model._model_name) if gemini_model and hasattr(gemini_model, '_model_name') else None
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "error": str(e),
+            "error_type": type(e).__name__
+        }), 500
 
 # --- Monitoring thread startup for all environments (including WSGI/Gunicorn) ---
 # Use a process-wide flag to avoid duplicate threads
