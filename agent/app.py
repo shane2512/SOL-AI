@@ -49,33 +49,6 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend communication
 
-# --- Monitoring thread startup for all environments (including WSGI/Gunicorn) ---
-# Use a process-wide flag to avoid duplicate threads
-_monitoring_started = False
-try:
-    if not _monitoring_started:
-        print('=== AGENT UNIVERSAL STARTUP ===')
-        print(f'w3: {w3}')
-        print(f'social: {social}')
-        print(f'moderator: {moderator}')
-        print(f'acct: {acct}')
-        print(f'Contracts loaded: {social is not None and moderator is not None}')
-        print(f'Agent address: {acct.address if acct else None}')
-        if all([w3, social, moderator, acct]):
-            monitoring_active = True
-            agent_stats["status"] = "running"
-            monitor_thread = threading.Thread(target=monitoring_loop, daemon=True)
-            monitor_thread.start()
-            print("Auto-started monitoring (universal)")
-        else:
-            print("Warning: Not all components available, monitoring not auto-started (universal)")
-            print(f"Components status: w3={w3 is not None}, social={social is not None}, moderator={moderator is not None}, acct={acct is not None}")
-        _monitoring_started = True
-except Exception as e:
-    print(f'FATAL ERROR in universal monitoring startup: {e}')
-    import traceback
-    traceback.print_exc()
-
 # Configuration
 SOMNIA_RPC_URL = os.getenv("SOMNIA_RPC_URL", "")
 SOMNIA_WSS_URL = os.getenv("SOMNIA_WSS_URL", "")
@@ -155,6 +128,33 @@ else:
         print("GEMINI_API_KEY not provided, using keyword-based detection")
     else:
         print("Gemini not available, using keyword-based detection")
+
+# --- Monitoring thread startup for all environments (including WSGI/Gunicorn) ---
+# Use a process-wide flag to avoid duplicate threads
+_monitoring_started = False
+try:
+    if not _monitoring_started:
+        print('=== AGENT UNIVERSAL STARTUP ===')
+        print(f'w3: {w3}')
+        print(f'social: {social}')
+        print(f'moderator: {moderator}')
+        print(f'acct: {acct}')
+        print(f'Contracts loaded: {social is not None and moderator is not None}')
+        print(f'Agent address: {acct.address if acct else None}')
+        if all([w3, social, moderator, acct]):
+            monitoring_active = True
+            agent_stats["status"] = "running"
+            monitor_thread = threading.Thread(target=monitoring_loop, daemon=True)
+            monitor_thread.start()
+            print("Auto-started monitoring (universal)")
+        else:
+            print("Warning: Not all components available, monitoring not auto-started (universal)")
+            print(f"Components status: w3={w3 is not None}, social={social is not None}, moderator={moderator is not None}, acct={acct is not None}")
+        _monitoring_started = True
+except Exception as e:
+    print(f'FATAL ERROR in universal monitoring startup: {e}')
+    import traceback
+    traceback.print_exc()
 
 def score_toxicity(text: str) -> int:
     """Score toxicity of text, return basis points (0-10000)"""
