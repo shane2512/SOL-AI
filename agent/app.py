@@ -206,21 +206,35 @@ def handle_post(post_id, author, content):
         
         if score_bp >= THRESHOLD_BP and moderator and acct:
             # Flag the post
-            gas_estimate = moderator.functions.flagPost(post_id, score_bp, MODEL_NAME).estimate_gas({'from': acct.address})
-            tx = moderator.functions.flagPost(post_id, score_bp, MODEL_NAME).build_transaction({
-                "from": acct.address,
-                "nonce": w3.eth.get_transaction_count(acct.address),
-                "chainId": CHAIN_ID or w3.eth.chain_id,
-                "gas": int(gas_estimate * 1.2),
-                "gasPrice": w3.to_wei("100", "gwei"),
-            })
-            signed = acct.sign_transaction(tx)
-            tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
-            receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-            
-            agent_stats["posts_flagged"] += 1
-            print(f"Post {post_id} flagged! Tx: {tx_hash.hex()}")
-            return {"flagged": True, "tx_hash": tx_hash.hex(), "score": score_bp}
+            try:
+                print(f"Attempting to flag post {post_id} with toxicity {score_bp}bp")
+                gas_estimate = moderator.functions.flagPost(post_id, score_bp, MODEL_NAME).estimate_gas({'from': acct.address})
+                print(f"Gas estimate: {gas_estimate}")
+                
+                tx = moderator.functions.flagPost(post_id, score_bp, MODEL_NAME).build_transaction({
+                    "from": acct.address,
+                    "nonce": w3.eth.get_transaction_count(acct.address),
+                    "chainId": CHAIN_ID or w3.eth.chain_id,
+                    "gas": int(gas_estimate * 1.2),
+                    "gasPrice": w3.to_wei("10", "gwei"),
+                })
+                print(f"Transaction built successfully")
+                
+                signed = acct.sign_transaction(tx)
+                tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+                print(f"Transaction sent: {tx_hash.hex()}")
+                
+                receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+                print(f"Transaction confirmed in block: {receipt.blockNumber}")
+                
+                agent_stats["posts_flagged"] += 1
+                print(f"Post {post_id} flagged successfully! Tx: {tx_hash.hex()}")
+                return {"flagged": True, "tx_hash": tx_hash.hex(), "score": score_bp}
+                
+            except Exception as flag_error:
+                print(f"ERROR flagging post {post_id}: {flag_error}")
+                print(f"Error type: {type(flag_error).__name__}")
+                return {"flagged": False, "score": score_bp, "error": str(flag_error)}
         else:
             print(f"Post {post_id} deemed safe")
             return {"flagged": False, "score": score_bp}
