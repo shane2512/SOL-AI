@@ -118,7 +118,9 @@ gemini_model = None
 if GEMINI_AVAILABLE and GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        gemini_model = genai.GenerativeModel(MODEL_NAME)
+        # Force use proper Gemini model name
+        actual_model_name = "gemini-1.5-flash" if "toxic-bert" in MODEL_NAME else MODEL_NAME
+        gemini_model = genai.GenerativeModel(actual_model_name)
         print(f"Gemini AI model initialized: {MODEL_NAME}")
     except Exception as e:
         print(f"Warning: Could not initialize Gemini model: {e}")
@@ -232,7 +234,7 @@ def handle_post(post_id, author, content):
                 print(f"Transaction built successfully")
                 
                 signed = acct.sign_transaction(tx)
-                tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+                tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
                 print(f"Transaction sent: {tx_hash.hex()}")
                 
                 receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
