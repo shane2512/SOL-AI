@@ -350,6 +350,15 @@ def monitoring_loop():
     """Background monitoring loop"""
     global monitoring_active, last_checked_post_id, agent_stats
     
+    # Initialize last_checked_post_id to current total on first run
+    if last_checked_post_id == 0 and social:
+        try:
+            current_total = social.functions.totalPosts().call()
+            last_checked_post_id = current_total
+            print(f"🔄 Starting monitoring from post {current_total + 1} (skipping existing {current_total} posts)")
+        except Exception as e:
+            print(f"Could not get initial post count: {e}")
+    
     while monitoring_active:
         try:
             if not social:
@@ -360,7 +369,8 @@ def monitoring_loop():
             agent_stats["last_check"] = time.time()
             
             if total_posts > last_checked_post_id:
-                print(f"Found {total_posts - last_checked_post_id} new posts")
+                new_posts_count = total_posts - last_checked_post_id
+                print(f"🆕 Found {new_posts_count} new posts (processing {last_checked_post_id + 1} to {total_posts})")
                 
                 for post_id in range(last_checked_post_id + 1, total_posts + 1):
                     if not monitoring_active:
@@ -368,11 +378,15 @@ def monitoring_loop():
                         
                     try:
                         post = social.functions.getPost(post_id).call()
+                        print(f"📝 Processing NEW post {post_id}")
                         handle_post(post[0], post[1], post[2])  # id, author, content
                     except Exception as e:
                         print(f"Error processing post {post_id}: {e}")
                 
                 last_checked_post_id = total_posts
+            else:
+                # No new posts, just update last check time
+                pass
             
         except Exception as e:
             print(f"Error in monitoring loop: {e}")
@@ -460,7 +474,54 @@ def stop_monitoring():
 @app.route('/stats')
 def get_stats():
     """Get agent statistics"""
-    return jsonify(agent_stats)
+    return jsonify({
+        **agent_stats,
+        "last_checked_post_id": last_checked_post_id,
+        "flagged_posts_cache_size": len(flagged_posts_cache)
+    })
+
+@app.route('/reset-cache', methods=['POST'])
+def reset_cache():
+    """Reset the flagged posts cache"""
+    global flagged_posts_cache
+    old_size = len(flagged_posts_cache)
+    flagged_posts_cache.clear()
+    return jsonify({
+        "message": f"Cache cleared ({old_size} entries removed)",
+        "cache_size": len(flagged_posts_cache)
+    })
+
+@app.route('/set-last-post', methods=['POST'])
+def set_last_post():
+    """Set the last checked post ID to skip existing posts"""
+    global last_checked_post_id
+    data = request.get_json()
+    
+    if data and 'post_id' in data:
+        new_post_id = int(data['post_id'])
+        old_post_id = last_checked_post_id
+        last_checked_post_id = new_post_id
+        return jsonify({
+            "message": f"Last checked post ID updated from {old_post_id} to {new_post_id}",
+            "old_post_id": old_post_id,
+            "new_post_id": new_post_id
+        })
+    else:
+        # Auto-set to current total posts
+        if social:
+            try:
+                current_total = social.functions.totalPosts().call()
+                old_post_id = last_checked_post_id
+                last_checked_post_id = current_total
+                return jsonify({
+                    "message": f"Last checked post ID set to current total: {current_total}",
+                    "old_post_id": old_post_id,
+                    "new_post_id": current_total
+                })
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+        else:
+            return jsonify({"error": "Social contract not available"}), 500
 
 @app.route('/moderate', methods=['POST'])
 def moderate_text():
