@@ -7,6 +7,16 @@ from pathlib import Path
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
+
+print('=== AGENT STARTUP BEGIN ===')
+print(f'ENV: SOMNIA_RPC_URL={os.getenv("SOMNIA_RPC_URL")}')
+print(f'ENV: SOCIAL_POSTS_ADDRESS={os.getenv("SOCIAL_POSTS_ADDRESS")}')
+print(f'ENV: MODERATOR_ADDRESS={os.getenv("MODERATOR_ADDRESS")}')
+print(f'ENV: AGENT_PRIVATE_KEY={os.getenv("AGENT_PRIVATE_KEY")[:8]}...')
+print(f'ENV: MODEL_NAME={os.getenv("MODEL_NAME")}')
+print(f'ENV: GEMINI_API_KEY={os.getenv("GEMINI_API_KEY")[:8]}...')
+print('=== AGENT STARTUP END ===')
+
 # Lightweight AI API imports
 try:
     import google.generativeai as genai
@@ -302,6 +312,26 @@ def health():
         "stats": agent_stats
     })
 
+@app.route('/diagnostics')
+def diagnostics():
+    """Return all key config/env values for debugging"""
+    return jsonify({
+        "SOMNIA_RPC_URL": os.getenv("SOMNIA_RPC_URL"),
+        "SOCIAL_POSTS_ADDRESS": os.getenv("SOCIAL_POSTS_ADDRESS"),
+        "MODERATOR_ADDRESS": os.getenv("MODERATOR_ADDRESS"),
+        "AGENT_PRIVATE_KEY": os.getenv("AGENT_PRIVATE_KEY")[:8] + "...",
+        "MODEL_NAME": os.getenv("MODEL_NAME"),
+        "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY")[:8] + "...",
+        "w3": str(w3),
+        "social": str(social),
+        "moderator": str(moderator),
+        "acct": str(acct),
+        "acct_address": getattr(acct, 'address', None),
+        "contracts_loaded": social is not None and moderator is not None,
+        "monitoring_active": monitoring_active,
+        "agent_stats": agent_stats
+    })
+
 @app.route('/start', methods=['POST'])
 def start_monitoring():
     """Start the monitoring process"""
@@ -356,17 +386,29 @@ def moderate_text():
     })
 
 if __name__ == '__main__':
-    # Auto-start monitoring if all components are available
-    if all([w3, social, moderator, acct]):
-        monitoring_active = True
-        agent_stats["status"] = "running"
-        monitor_thread = threading.Thread(target=monitoring_loop, daemon=True)
-        monitor_thread.start()
-        print("Auto-started monitoring")
-    else:
-        print("Warning: Not all components available, monitoring not auto-started")
-        print(f"Components status: w3={w3 is not None}, social={social is not None}, moderator={moderator is not None}, acct={acct is not None}")
-    
-    # Run Flask app
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    try:
+        print('=== AGENT MAIN ENTRY ===')
+        print(f'w3: {w3}')
+        print(f'social: {social}')
+        print(f'moderator: {moderator}')
+        print(f'acct: {acct}')
+        print(f'Contracts loaded: {social is not None and moderator is not None}')
+        print(f'Agent address: {acct.address if acct else None}')
+        # Auto-start monitoring if all components are available
+        if all([w3, social, moderator, acct]):
+            monitoring_active = True
+            agent_stats["status"] = "running"
+            monitor_thread = threading.Thread(target=monitoring_loop, daemon=True)
+            monitor_thread.start()
+            print("Auto-started monitoring")
+        else:
+            print("Warning: Not all components available, monitoring not auto-started")
+            print(f"Components status: w3={w3 is not None}, social={social is not None}, moderator={moderator is not None}, acct={acct is not None}")
+        
+        # Run Flask app in debug mode for troubleshooting
+        port = int(os.environ.get('PORT', 5000))
+        app.run(host='0.0.0.0', port=port, debug=True)
+    except Exception as main_exc:
+        print(f'FATAL ERROR in __main__: {main_exc}')
+        import traceback
+        traceback.print_exc()
