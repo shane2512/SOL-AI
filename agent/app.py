@@ -63,6 +63,7 @@ THRESHOLD_BP = int(os.getenv("TOXICITY_THRESHOLD_BP", "2500"))  # Lowered to 25%
 # Global variables for monitoring
 monitoring_active = False
 last_checked_post_id = 0
+flagged_posts_cache = set()  # Track posts we've already flagged
 agent_stats = {
     "posts_processed": 0,
     "posts_flagged": 0,
@@ -110,6 +111,19 @@ if w3 and SOCIAL_ABI and MOD_ABI:
         social = w3.eth.contract(address=SOCIAL_ADDR, abi=SOCIAL_ABI)
         moderator = w3.eth.contract(address=MODERATOR_ADDR, abi=MOD_ABI)
         print("Contracts initialized successfully")
+        
+        # Test agent authorization
+        if acct:
+            try:
+                # Try to estimate gas for flagPost to verify authorization
+                test_gas = moderator.functions.flagPost(999999, 5000, "auth-test").estimate_gas({'from': acct.address})
+                print(f"✅ Agent authorized to flag posts (test gas: {test_gas})")
+            except Exception as auth_error:
+                if "already flagged" in str(auth_error).lower():
+                    print("✅ Agent authorized (test post already flagged)")
+                else:
+                    print(f"⚠️ Agent authorization test failed: {auth_error}")
+                    
     except Exception as e:
         print(f"Warning: Could not initialize contracts: {e}")
 
@@ -276,15 +290,13 @@ def handle_post(post_id, author, content):
             print(f"Content: '{content[:100]}...'")
             
             if moderator and acct:
-                # Check if post is already flagged to prevent duplicate flagging
-                try:
-                    is_flagged = moderator.functions.isPostFlagged(post_id).call()
-                    if is_flagged:
-                        print(f"⚠️ Post {post_id} already flagged, skipping")
-                        return {"flagged": False, "score": score_bp, "already_flagged": True}
-                except Exception as check_error:
-                    print(f"⚠️ Could not check flagged status for post {post_id}: {check_error}")
-                    # Continue with flagging attempt but handle the error gracefully
+                # Check if we've already flagged this post in our session
+                if post_id in flagged_posts_cache:
+                    print(f"⚠️ Post {post_id} already flagged by this agent, skipping")
+                    return {"flagged": False, "score": score_bp, "already_flagged": True}
+                
+                # Skip on-chain flagged check since contract ABI doesn't have isPostFlagged
+                # We'll rely on our cache and handle "already flagged" errors gracefully
                 
                 # Flag the post
                 try:
@@ -308,6 +320,8 @@ def handle_post(post_id, author, content):
                     
                     receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
                     
+                    # Add to our cache and update stats
+                    flagged_posts_cache.add(post_id)
                     agent_stats["posts_flagged"] += 1
                     print(f"✅ Post {post_id} flagged! Tx: {tx_hash.hex()}")
                     return {"flagged": True, "tx_hash": tx_hash.hex(), "score": score_bp}
@@ -316,6 +330,7 @@ def handle_post(post_id, author, content):
                     error_msg = str(flag_error).lower()
                     if "already flagged" in error_msg:
                         print(f"⚠️ Post {post_id} already flagged (contract error)")
+                        flagged_posts_cache.add(post_id)  # Add to cache to prevent future attempts
                         return {"flagged": False, "score": score_bp, "already_flagged": True}
                     else:
                         print(f"❌ Flagging failed for post {post_id}: {flag_error}")
