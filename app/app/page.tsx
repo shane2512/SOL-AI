@@ -197,28 +197,28 @@ export default function Home() {
 
       {/* Header Navigation */}
       <header className="card mb-8 sticky top-4 z-50">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col lg:flex-row items-center gap-4 lg:gap-0 lg:justify-between">
           {/* Left: Logo */}
           <div className="flex items-center gap-4">
-            <h1 className="text-brand text-2xl text-neon-green">SOL AI</h1>
+            <h1 className="text-brand text-2xl lg:text-3xl text-neon-green">SOL AI</h1>
           </div>
 
           {/* Center: Search Bar */}
-          <div className="flex-1 max-w-md mx-8">
+          <div className="w-full lg:flex-1 lg:max-w-md lg:mx-8">
             <input
               type="text"
               placeholder="Search posts or users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input text-sm"
+              className="input text-sm w-full"
             />
           </div>
 
           {/* Right: Wallet & Profile */}
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
             <button 
               onClick={connectWallet} 
-              className={`btn ${account ? 'btn-primary' : 'btn-secondary'}`}
+              className={`btn text-sm ${account ? 'btn-primary' : 'btn-secondary'}`}
             >
               {account ? '🟢 Connected' : '🔗 Connect Wallet'}
             </button>
@@ -228,26 +228,26 @@ export default function Home() {
                 <div className="post-avatar text-xs">
                   {getAvatarInitials(account)}
                 </div>
-                <span className="text-mono text-sm opacity-70">
+                <span className="text-mono text-xs lg:text-sm opacity-70">
                   {getDisplayName(account)}
                 </span>
               </div>
             )}
             
-            <span className="text-mono text-xs opacity-50">
-              Connected to Somnia Testnet
+            <span className="text-mono text-xs opacity-50 hidden lg:block">
+              Somnia Testnet
             </span>
           </div>
         </div>
       </header>
 
       {/* Main Content Container */}
-      <div className="container">
-        <div className="flex gap-8">
+      <div className="container px-4 lg:px-8">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
           {/* Main Feed */}
-          <main className="flex-1">
+          <main className="flex-1 min-w-0">
             {/* Filter Buttons */}
-            <div className="flex gap-4 mb-6">
+            <div className="flex flex-wrap gap-2 lg:gap-4 mb-6 justify-center lg:justify-start">
               {[
                 { key: 'all', label: 'All Posts' },
                 { key: 'safe', label: 'Safe Only' },
@@ -257,7 +257,7 @@ export default function Home() {
                 <button
                   key={filter.key}
                   onClick={() => setActiveFilter(filter.key)}
-                  className={`filter-btn ${activeFilter === filter.key ? 'active' : ''}`}
+                  className={`filter-btn text-xs lg:text-sm ${activeFilter === filter.key ? 'active' : ''}`}
                 >
                   {filter.label}
                 </button>
@@ -265,7 +265,7 @@ export default function Home() {
               
               <button 
                 onClick={loadPosts} 
-                className="btn btn-secondary text-xs px-4 py-2"
+                className="btn btn-secondary text-xs px-3 py-1 lg:px-4 lg:py-2"
               >
                 🔄 Refresh
               </button>
@@ -334,35 +334,38 @@ export default function Home() {
             </div>
           </main>
 
-          {/* Sidebar - Desktop Only */}
-          <aside className="hidden lg:block w-64 space-y-4">
-            <div className="card">
-              <h3 className="text-nav font-semibold mb-4">Moderation</h3>
-              <div className="space-y-3">
-                <button 
-                  onClick={() => setShowFlaggedPosts(true)}
-                  className="w-full text-left p-3 rounded-lg hover:bg-white hover:bg-opacity-5 transition-colors flex items-center justify-between"
-                >
-                  <span className="text-sm">Flagged Content</span>
-                  {flaggedPosts.length > 0 && (
-                    <span className="badge badge-flagged text-xs">
-                      {flaggedPosts.length}
-                    </span>
-                  )}
-                </button>
-                <button className="w-full text-left p-3 rounded-lg hover:bg-white hover:bg-opacity-5 transition-colors">
-                  <span className="text-sm">Moderation Log</span>
-                </button>
-                <button className="w-full text-left p-3 rounded-lg hover:bg-white hover:bg-opacity-5 transition-colors">
-                  <span className="text-sm">Community Guidelines</span>
-                </button>
+          {/* Sidebar - Responsive */}
+          <aside className="w-full lg:w-64 lg:flex-shrink-0 space-y-4">
+            {/* Mobile: Horizontal scroll, Desktop: Vertical stack */}
+            <div className="flex lg:flex-col gap-4 lg:gap-0 lg:space-y-4 overflow-x-auto lg:overflow-x-visible pb-4 lg:pb-0">
+              <div className="card min-w-64 lg:min-w-0 flex-shrink-0 lg:flex-shrink">
+                <h3 className="text-nav font-semibold mb-4">Moderation</h3>
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => setShowFlaggedPosts(true)}
+                    className="w-full text-left p-3 rounded-lg hover:bg-white hover:bg-opacity-5 transition-colors flex items-center justify-between"
+                  >
+                    <span className="text-sm">Flagged Content</span>
+                    {flaggedPosts.length > 0 && (
+                      <span className="badge badge-flagged text-xs">
+                        {flaggedPosts.length}
+                      </span>
+                    )}
+                  </button>
+                  <button className="w-full text-left p-3 rounded-lg hover:bg-white hover:bg-opacity-5 transition-colors">
+                    <span className="text-sm">Moderation Log</span>
+                  </button>
+                  <button className="w-full text-left p-3 rounded-lg hover:bg-white hover:bg-opacity-5 transition-colors">
+                    <span className="text-sm">Community Guidelines</span>
+                  </button>
+                </div>
               </div>
-            </div>
-            
-            <div className="card">
-              <h3 className="text-nav font-semibold mb-4">Status</h3>
-              <div className="text-mono text-sm opacity-70">
-                {status || 'Ready'}
+              
+              <div className="card min-w-64 lg:min-w-0 flex-shrink-0 lg:flex-shrink">
+                <h3 className="text-nav font-semibold mb-4">Status</h3>
+                <div className="text-mono text-sm opacity-70">
+                  {status || 'Ready'}
+                </div>
               </div>
             </div>
           </aside>
