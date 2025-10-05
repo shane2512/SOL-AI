@@ -50,94 +50,113 @@ export default function AgentStatus() {
 
   return (
     <>
-      {/* Floating Button - Bottom Left */}
+      {/* AI Agent Status FAB */}
       <button
         onClick={handleOpenPanel}
-        className="fixed bottom-4 left-4 z-50 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
+        className="fab"
+        style={{
+          position: 'fixed',
+          bottom: '80px',
+          left: 'var(--spacing-lg)',
+          width: '64px',
+          height: '64px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 'var(--spacing-xs)'
+        }}
         title="AI Agent Status"
       >
-        <div className="flex items-center space-x-2">
-          <div className={`w-3 h-3 rounded-full ${agentStatus.loading ? 'bg-yellow-400 animate-pulse' : agentStatus.online ? 'bg-green-400' : 'bg-red-400'}`}></div>
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        </div>
+        <div 
+          className={`w-2 h-2 rounded-full ${agentStatus.loading ? 'animate-pulse' : ''}`}
+          style={{
+            width: '8px',
+            height: '8px',
+            borderRadius: '50%',
+            backgroundColor: agentStatus.loading ? 'var(--color-yellow)' : agentStatus.online ? 'var(--color-emerald)' : 'var(--color-red)'
+          }}
+        ></div>
+        <span style={{ fontSize: '16px' }}>🤖</span>
       </button>
 
       {/* Status Panel Modal */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-4 rounded-t-xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-4 h-4 rounded-full ${agentStatus.online ? 'bg-green-400' : 'bg-red-400'}`}></div>
-                  <h3 className="text-lg font-semibold">
-                    {agentStatus.online ? '🟢 AI Moderator Online' : '🔴 AI Moderator Offline'}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="text-white hover:text-gray-200 transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div 
+                  style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    backgroundColor: agentStatus.online ? 'var(--color-emerald)' : 'var(--color-red)'
+                  }}
+                ></div>
+                <h3 className="text-brand text-lg">
+                  {agentStatus.online ? '🟢 AI Moderator Online' : '🔴 AI Moderator Offline'}
+                </h3>
               </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="btn btn-danger text-sm px-3 py-1"
+              >
+                ✕
+              </button>
             </div>
 
             {/* Content */}
-            <div className="p-4 space-y-4">
+            <div className="space-y-4">
               {/* Status Info */}
-              <div className="bg-gray-50 rounded-lg p-3">
-                <h4 className="font-semibold text-gray-800 mb-2">Status</h4>
+              <div className="card">
+                <h4 className="text-nav font-semibold mb-3">Status</h4>
                 {agentStatus.loading ? (
-                  <div className="text-gray-600">Checking status...</div>
+                  <div className="text-mono opacity-70">Checking status...</div>
                 ) : agentStatus.online ? (
-                  <div className="text-green-600">✅ Agent is running and monitoring posts</div>
+                  <div className="text-emerald-400">✅ Agent is running and monitoring posts</div>
                 ) : (
-                  <div className="text-red-600">❌ Agent is offline or unreachable</div>
+                  <div className="text-red-400">❌ Agent is offline or unreachable</div>
                 )}
                 {agentStatus.error && (
-                  <div className="text-red-500 text-sm mt-1">Error: {agentStatus.error}</div>
+                  <div className="text-red-400 text-sm mt-2">Error: {agentStatus.error}</div>
                 )}
               </div>
 
               {/* Statistics */}
               {agentStatus.online && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <h4 className="font-semibold text-gray-800 mb-2">Statistics</h4>
+                <div className="card">
+                  <h4 className="text-nav font-semibold mb-3">Statistics</h4>
                   {isLoading ? (
-                    <div className="text-gray-600">Loading stats...</div>
+                    <div className="text-mono opacity-70">Loading stats...</div>
                   ) : stats && !stats.error ? (
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-3 text-sm">
                       <div className="flex justify-between">
-                        <span>Posts Processed:</span>
-                        <span className="font-semibold">{stats.posts_processed || 0}</span>
+                        <span className="text-body">Posts Processed:</span>
+                        <span className="text-mono font-semibold">{stats.posts_processed || 0}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Posts Flagged:</span>
-                        <span className="font-semibold text-red-600">{stats.posts_flagged || 0}</span>
+                        <span className="text-body">Posts Flagged:</span>
+                        <span className="text-mono font-semibold text-red-400">{stats.posts_flagged || 0}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Status:</span>
-                        <span className={`font-semibold ${stats.status === 'running' ? 'text-green-600' : 'text-yellow-600'}`}>
+                        <span className="text-body">Status:</span>
+                        <span className={`text-mono font-semibold ${stats.status === 'running' ? 'text-emerald-400' : 'text-yellow-400'}`}>
                           {stats.status || 'Unknown'}
                         </span>
                       </div>
                       {stats.last_check && (
                         <div className="flex justify-between">
-                          <span>Last Check:</span>
-                          <span className="font-semibold text-xs">
+                          <span className="text-body">Last Check:</span>
+                          <span className="text-mono font-semibold text-xs opacity-70">
                             {new Date(stats.last_check * 1000).toLocaleTimeString()}
                           </span>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="text-red-500 text-sm">
+                    <div className="text-red-400 text-sm">
                       {stats?.error || 'Failed to load statistics'}
                     </div>
                   )}
@@ -146,20 +165,20 @@ export default function AgentStatus() {
 
               {/* Manual Controls */}
               {agentStatus.online && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <h4 className="font-semibold text-gray-800 mb-2">Manual Controls</h4>
-                  <div className="flex space-x-2">
+                <div className="card">
+                  <h4 className="text-nav font-semibold mb-3">Manual Controls</h4>
+                  <div className="flex gap-3">
                     <button
                       onClick={() => handleToggleMonitoring(true)}
                       disabled={isLoading}
-                      className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
+                      className="btn btn-primary flex-1 text-sm"
                     >
                       {isLoading ? 'Loading...' : 'Start Monitoring'}
                     </button>
                     <button
                       onClick={() => handleToggleMonitoring(false)}
                       disabled={isLoading}
-                      className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
+                      className="btn btn-danger flex-1 text-sm"
                     >
                       {isLoading ? 'Loading...' : 'Stop Monitoring'}
                     </button>
@@ -174,7 +193,7 @@ export default function AgentStatus() {
                   setStats(null);
                   loadStats();
                 }}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                className="btn btn-secondary w-full"
               >
                 🔄 Refresh Status
               </button>

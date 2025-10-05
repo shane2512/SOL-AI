@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BrowserProvider, Contract, JsonRpcProvider, JsonRpcSigner, WebSocketProvider } from "ethers";
 import SocialAbi from "../contracts/abis/SocialPosts.json";
 import ModeratorAbi from "../contracts/abis/Moderator.json";
+import "./globals.css";
 
 const SOCIAL_ADDR = process.env.NEXT_PUBLIC_SOCIAL_POSTS_ADDRESS as string;
 const MODERATOR_ADDR = process.env.NEXT_PUBLIC_MODERATOR_ADDRESS as string;
@@ -21,6 +22,8 @@ export default function Home() {
   const [showFlaggedPosts, setShowFlaggedPosts] = useState<boolean>(false);
   const [showCreatePost, setShowCreatePost] = useState<boolean>(false);
   const [notification, setNotification] = useState<string>("");
+  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const logRef = useRef<HTMLDivElement>(null);
 
   const getDisplayName = (address: string) => {
@@ -148,306 +151,280 @@ export default function Home() {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [logs]);
 
-  const buttonStyle = {
-    padding: '12px 24px',
-    borderRadius: '12px',
-    border: 'none',
-    fontWeight: 600,
-    fontSize: '14px',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-    color: 'white',
-    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-  };
+  // Filter posts based on active filter and search query
+  const filteredPosts = useMemo(() => {
+    let filtered = posts;
+    
+    // Apply filter
+    switch (activeFilter) {
+      case "safe":
+        filtered = posts.filter(p => !p.flagged);
+        break;
+      case "my":
+        filtered = posts.filter(p => p.author.toLowerCase() === account.toLowerCase());
+        break;
+      case "recent":
+        filtered = posts.slice(0, 10);
+        break;
+      default:
+        filtered = posts.filter(p => !p.flagged); // Show only safe posts by default
+    }
+    
+    // Apply search
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(p => 
+        p.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.author.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    return filtered;
+  }, [posts, activeFilter, searchQuery, account]);
 
-  const cardStyle = {
-    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%)',
-    backdropFilter: 'blur(20px)',
-    padding: '24px',
-    borderRadius: '20px',
-    border: '1px solid rgba(255, 255, 255, 0.1)',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+  // Generate avatar initials from address
+  const getAvatarInitials = (address: string) => {
+    return address.slice(2, 4).toUpperCase();
   };
 
   return (
-    <div>
+    <div className="min-h-screen">
       {/* Notification */}
       {notification && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-          color: 'white',
-          padding: '16px 24px',
-          borderRadius: '12px',
-          boxShadow: '0 8px 32px rgba(239, 68, 68, 0.4)',
-          zIndex: 9999,
-          maxWidth: '400px',
-          fontSize: '14px',
-          fontWeight: 600
-        }}>
+        <div className={`notification notification-error animate-fade-in`}>
           {notification}
         </div>
       )}
 
-      {/* Navigation Bar */}
-      <div style={{ 
-        display: 'flex', 
-        gap: 16, 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        marginBottom: '32px',
-        padding: '20px',
-        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)',
-        borderRadius: '16px',
-        border: '1px solid rgba(59, 130, 246, 0.2)'
-      }}>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <button 
-            onClick={connectWallet} 
-            style={buttonStyle}
-            onMouseOver={(e) => (e.target as HTMLButtonElement).style.transform = 'translateY(-2px)'}
-            onMouseOut={(e) => (e.target as HTMLButtonElement).style.transform = 'translateY(0)'}
-          >
-            {account ? '🟢 Connected' : '🔗 Connect Wallet'}
-          </button>
-          <div style={{ 
-            opacity: 0.9, 
-            fontSize: '14px',
-            padding: '8px 16px',
-            background: account ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-            borderRadius: '8px',
-            border: `1px solid ${account ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
-          }}>
-            {account ? `${getDisplayName(account)}` : 'Not connected'}
+      {/* Header Navigation */}
+      <header className="card mb-8 sticky top-4 z-50">
+        <div className="flex items-center justify-between">
+          {/* Left: Logo */}
+          <div className="flex items-center gap-4">
+            <h1 className="text-brand text-2xl text-neon-green">SOL AI</h1>
+          </div>
+
+          {/* Center: Search Bar */}
+          <div className="flex-1 max-w-md mx-8">
+            <input
+              type="text"
+              placeholder="Search posts or users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input text-sm"
+            />
+          </div>
+
+          {/* Right: Wallet & Profile */}
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={connectWallet} 
+              className={`btn ${account ? 'btn-primary' : 'btn-secondary'}`}
+            >
+              {account ? '🟢 Connected' : '🔗 Connect Wallet'}
+            </button>
+            
+            {account && (
+              <div className="flex items-center gap-2">
+                <div className="post-avatar text-xs">
+                  {getAvatarInitials(account)}
+                </div>
+                <span className="text-mono text-sm opacity-70">
+                  {getDisplayName(account)}
+                </span>
+              </div>
+            )}
+            
+            <span className="text-mono text-xs opacity-50">
+              Connected to Somnia Testnet
+            </span>
           </div>
         </div>
+      </header>
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button
-            onClick={() => setShowCreatePost(!showCreatePost)}
-            style={{
-              ...buttonStyle,
-              background: showCreatePost ? 'linear-gradient(135deg, #059669, #047857)' : 'linear-gradient(135deg, #10b981, #059669)',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-            }}
-          >
-            ✍️ {showCreatePost ? 'Cancel' : 'Create Post'}
-          </button>
-          
-          <button
-            onClick={() => setShowFlaggedPosts(!showFlaggedPosts)}
-            style={{
-              ...buttonStyle,
-              background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
-              position: 'relative'
-            }}
-          >
-            ⚠️ Flagged Posts
-            {flaggedPosts.length > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: '-8px',
-                right: '-8px',
-                background: '#fbbf24',
-                color: '#92400e',
-                borderRadius: '50%',
-                width: '20px',
-                height: '20px',
-                fontSize: '12px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                {flaggedPosts.length}
-              </span>
-            )}
-          </button>
-        </div>
+      {/* Main Content Container */}
+      <div className="container">
+        <div className="flex gap-8">
+          {/* Main Feed */}
+          <main className="flex-1">
+            {/* Filter Buttons */}
+            <div className="flex gap-4 mb-6">
+              {[
+                { key: 'all', label: 'All Posts' },
+                { key: 'safe', label: 'Safe Only' },
+                { key: 'my', label: 'My Posts' },
+                { key: 'recent', label: 'Recent Activity' }
+              ].map(filter => (
+                <button
+                  key={filter.key}
+                  onClick={() => setActiveFilter(filter.key)}
+                  className={`filter-btn ${activeFilter === filter.key ? 'active' : ''}`}
+                >
+                  {filter.label}
+                </button>
+              ))}
+              
+              <button 
+                onClick={loadPosts} 
+                className="btn btn-secondary text-xs px-4 py-2"
+              >
+                🔄 Refresh
+              </button>
+            </div>
 
-        <div style={{ 
-          opacity: 0.8,
-          fontSize: '14px',
-          fontWeight: 500
-        }}>
-          {status}
+            {/* Post Feed */}
+            <div className="space-y-4">
+              {filteredPosts.map((post) => (
+                <article key={String(post.id)} className="post-card">
+                  <div className="post-header">
+                    <div className="post-avatar">
+                      {getAvatarInitials(post.author)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-body font-medium">
+                          {getDisplayName(post.author)}
+                        </span>
+                        <span className="text-mono text-xs opacity-50">
+                          #{String(post.id)}
+                        </span>
+                      </div>
+                      <span className="text-mono text-xs opacity-50">
+                        Just now
+                      </span>
+                    </div>
+                    <div className={`badge ${post.flagged ? 'badge-flagged' : 'badge-safe'}`}>
+                      {post.flagged ? '🚩 Flagged' : '✅ Safe'}
+                    </div>
+                  </div>
+                  
+                  <div className="post-content">
+                    {post.content}
+                  </div>
+                  
+                  <div className="post-actions">
+                    <button className="post-action">
+                      <span>❤️</span>
+                      <span>Like</span>
+                    </button>
+                    <button className="post-action">
+                      <span>↗️</span>
+                      <span>Share</span>
+                    </button>
+                    <button className="post-action">
+                      <span>🚨</span>
+                      <span>Report</span>
+                    </button>
+                    <button className="post-action">
+                      <span>🔗</span>
+                      <span>Blockchain</span>
+                    </button>
+                  </div>
+                </article>
+              ))}
+              
+              {filteredPosts.length === 0 && (
+                <div className="card text-center py-12">
+                  <div className="text-4xl mb-4">📭</div>
+                  <h3 className="text-xl mb-2">No posts found</h3>
+                  <p className="opacity-70">
+                    {searchQuery ? 'Try adjusting your search terms' : 'Be the first to create a post!'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </main>
+
+          {/* Sidebar - Desktop Only */}
+          <aside className="hidden lg:block w-64 space-y-4">
+            <div className="card">
+              <h3 className="text-nav font-semibold mb-4">Moderation</h3>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => setShowFlaggedPosts(true)}
+                  className="w-full text-left p-3 rounded-lg hover:bg-white hover:bg-opacity-5 transition-colors flex items-center justify-between"
+                >
+                  <span className="text-sm">Flagged Content</span>
+                  {flaggedPosts.length > 0 && (
+                    <span className="badge badge-flagged text-xs">
+                      {flaggedPosts.length}
+                    </span>
+                  )}
+                </button>
+                <button className="w-full text-left p-3 rounded-lg hover:bg-white hover:bg-opacity-5 transition-colors">
+                  <span className="text-sm">Moderation Log</span>
+                </button>
+                <button className="w-full text-left p-3 rounded-lg hover:bg-white hover:bg-opacity-5 transition-colors">
+                  <span className="text-sm">Community Guidelines</span>
+                </button>
+              </div>
+            </div>
+            
+            <div className="card">
+              <h3 className="text-nav font-semibold mb-4">Status</h3>
+              <div className="text-mono text-sm opacity-70">
+                {status || 'Ready'}
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
 
-      {/* Create Post Section - Only show when button is clicked */}
-      {showCreatePost && (
-        <div style={{...cardStyle, marginBottom: '32px'}}>
-          <h3 style={{ 
-            fontSize: '1.5rem', 
-            fontWeight: 600, 
-            marginBottom: '20px',
-            background: 'linear-gradient(135deg, #10b981, #059669)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            ✍️ Create a Post
-          </h3>
-          <textarea
-            value={postInput}
-            onChange={(e) => setPostInput(e.target.value)}
-            placeholder="Share your thoughts with the decentralized world..."
-            rows={4}
-            style={{ 
-              width: '100%', 
-              padding: '16px', 
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              background: 'rgba(0, 0, 0, 0.2)',
-              color: '#e6edf3',
-              fontSize: '16px',
-              fontFamily: 'Inter, system-ui, sans-serif',
-              resize: 'vertical',
-              outline: 'none',
-              transition: 'all 0.3s ease'
-            }}
-            onFocus={(e) => e.target.style.borderColor = 'rgba(59, 130, 246, 0.5)'}
-            onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.1)'}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
-            <div style={{ fontSize: '14px', opacity: 0.6 }}>
-              {postInput.length}/280 characters
-            </div>
-            <button 
-              onClick={submitPost} 
-              disabled={!postInput.trim()}
-              style={{
-                ...buttonStyle,
-                background: postInput.trim() ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(107, 114, 128, 0.5)',
-                cursor: postInput.trim() ? 'pointer' : 'not-allowed',
-                boxShadow: postInput.trim() ? '0 4px 12px rgba(16, 185, 129, 0.3)' : 'none'
-              }}
-            >
-              🚀 Post
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Flagged Posts Modal */}
       {showFlaggedPosts && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2000,
-          padding: '20px'
-        }}
-        onClick={() => setShowFlaggedPosts(false)}
-        >
-          <div 
-            style={{
-              ...cardStyle,
-              maxWidth: '800px',
-              width: '100%',
-              maxHeight: '80vh',
-              position: 'relative'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ 
-                fontSize: '1.5rem', 
-                fontWeight: 600, 
-                margin: 0,
-                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
+        <div className="modal-overlay" onClick={() => setShowFlaggedPosts(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-brand text-xl">
                 ⚠️ Flagged Posts ({flaggedPosts.length})
               </h3>
               <button
                 onClick={() => setShowFlaggedPosts(false)}
-                style={{
-                  background: 'rgba(239, 68, 68, 0.2)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: '8px',
-                  color: '#ef4444',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 600
-                }}
+                className="btn btn-danger text-sm px-3 py-1"
               >
                 ✕ Close
               </button>
             </div>
-            <div style={{ 
-              maxHeight: '60vh', 
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 16
-            }}>
+            
+            <div className="space-y-4 max-h-96 overflow-y-auto">
               {flaggedPosts.length === 0 ? (
-                <div style={{ opacity: 0.5, textAlign: 'center', padding: '40px 0' }}>
-                  🎉 No flagged posts!
-                  <br />
-                  <small style={{ fontSize: '12px', marginTop: '8px', display: 'block' }}>
-                    All posts are following community guidelines
-                  </small>
+                <div className="text-center py-12 opacity-70">
+                  <div className="text-4xl mb-4">🎉</div>
+                  <h4 className="text-lg mb-2">No flagged posts!</h4>
+                  <p className="text-sm">All posts are following community guidelines</p>
                 </div>
               ) : (
-                flaggedPosts.map((p) => (
-                  <div key={String(p.id)} style={{ 
-                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    padding: '16px', 
-                    borderRadius: '12px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                      <span style={{ 
-                        fontWeight: 700, 
-                        fontSize: '14px',
-                        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent'
-                      }}>
-                        #{String(p.id)}
-                      </span>
-                      <span style={{ 
-                        opacity: 0.7, 
-                        fontSize: '12px',
-                        background: 'rgba(239, 68, 68, 0.2)',
-                        padding: '4px 8px',
-                        borderRadius: '6px'
-                      }} title={p.author}>
-                        {getDisplayName(p.author)}
-                      </span>
-                      <span style={{ 
-                        marginLeft: 'auto',
-                        padding: '4px 12px',
-                        borderRadius: '20px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                        color: 'white'
-                      }}>
+                flaggedPosts.map((post) => (
+                  <div key={String(post.id)} className="card border-red-500 border-opacity-30">
+                    <div className="post-header">
+                      <div className="post-avatar">
+                        {getAvatarInitials(post.author)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-body font-medium">
+                            {getDisplayName(post.author)}
+                          </span>
+                          <span className="text-mono text-xs opacity-50">
+                            #{String(post.id)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="badge badge-flagged">
                         🚩 Flagged by AI
-                      </span>
+                      </div>
                     </div>
-                    <div style={{ 
-                      whiteSpace: 'pre-wrap', 
-                      lineHeight: 1.5,
-                      fontSize: '14px',
-                      opacity: 0.9
-                    }}>
-                      {p.content}
+                    
+                    <div className="post-content">
+                      {post.content}
+                    </div>
+                    
+                    <div className="flex gap-2 mt-4">
+                      <button className="btn btn-secondary text-sm">
+                        Appeal Flag
+                      </button>
+                      <button className="btn btn-danger text-sm">
+                        Hide Post
+                      </button>
                     </div>
                   </div>
                 ))
@@ -457,130 +434,56 @@ export default function Home() {
         </div>
       )}
 
-      <div style={cardStyle}>
-        <h3 style={{ 
-          fontSize: '1.5rem', 
-          fontWeight: 600, 
-          marginBottom: '20px',
-          background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent'
-        }}>
-          💬 All Posts Feed
-        </h3>
-        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          <button 
-            onClick={loadPosts} 
-            style={{
-              ...buttonStyle,
-              padding: '8px 16px',
-              fontSize: '12px',
-              background: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-              boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)'
-            }}
-          >
-            🔄 Refresh
-          </button>
-          <button 
-            onClick={() => window.location.reload()} 
-            style={{
-              ...buttonStyle,
-              padding: '8px 16px',
-              fontSize: '12px',
-              background: 'linear-gradient(135deg, #6b7280, #4b5563)',
-              boxShadow: '0 2px 8px rgba(107, 114, 128, 0.3)'
-            }}
-          >
-            ⚡ Hard Refresh
-          </button>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: 600, overflowY: 'auto' }}>
-          {posts.filter(p => !p.flagged).map((p) => (
-            <div key={String(p.id)} style={{ 
-              background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-              padding: '16px', 
-              borderRadius: '12px',
-              transition: 'all 0.3s ease',
-              cursor: 'pointer'
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-            onMouseOut={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <span style={{ 
-                  fontWeight: 700, 
-                  fontSize: '14px',
-                  background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
-                }}>
-                  #{String(p.id)}
-                </span>
-                <span style={{ 
-                  opacity: 0.7, 
-                  fontSize: '12px',
-                  background: 'rgba(107, 114, 128, 0.2)',
-                  padding: '4px 8px',
-                  borderRadius: '6px'
-                }} title={p.author}>
-                  {getDisplayName(p.author)}
-                </span>
-                <span style={{ 
-                  marginLeft: 'auto',
-                  padding: '4px 12px',
-                  borderRadius: '20px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                  color: 'white'
-                }}>
-                  ✅ Safe
-                </span>
+      {/* Create Post Modal */}
+      {showCreatePost && (
+        <div className="modal-overlay" onClick={() => setShowCreatePost(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-brand text-xl mb-6">✍️ Create a Post</h3>
+            
+            <textarea
+              value={postInput}
+              onChange={(e) => setPostInput(e.target.value)}
+              placeholder="Share your thoughts with the decentralized world..."
+              className="input textarea mb-4"
+              rows={4}
+            />
+            
+            <div className="flex justify-between items-center">
+              <div className="text-mono text-sm opacity-70">
+                {postInput.length}/280 characters
               </div>
-              <div style={{ 
-                whiteSpace: 'pre-wrap', 
-                lineHeight: 1.5,
-                fontSize: '14px',
-                opacity: 0.9
-              }}>
-                {p.content}
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowCreatePost(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={submitPost} 
+                  disabled={!postInput.trim()}
+                  className="btn btn-primary"
+                >
+                  🚀 Post to Blockchain
+                </button>
               </div>
             </div>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Floating Event Log Button */}
+      {/* Floating Action Buttons */}
+      <button
+        onClick={() => setShowCreatePost(true)}
+        className="fab fab-bottom-right"
+        title="Create New Post"
+      >
+        ✍️
+      </button>
+
       <button
         onClick={() => setShowEventLog(true)}
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          border: 'none',
-          background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-          color: 'white',
-          fontSize: '20px',
-          cursor: 'pointer',
-          boxShadow: '0 8px 24px rgba(139, 92, 246, 0.4)',
-          transition: 'all 0.3s ease',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-        onMouseOver={(e) => {
-          (e.target as HTMLButtonElement).style.transform = 'scale(1.1)';
-          (e.target as HTMLButtonElement).style.boxShadow = '0 12px 32px rgba(139, 92, 246, 0.6)';
-        }}
-        onMouseOut={(e) => {
-          (e.target as HTMLButtonElement).style.transform = 'scale(1)';
-          (e.target as HTMLButtonElement).style.boxShadow = '0 8px 24px rgba(139, 92, 246, 0.4)';
-        }}
+        className="fab fab-bottom-left"
         title="View Event Log"
       >
         📊
@@ -588,91 +491,50 @@ export default function Home() {
 
       {/* Event Log Modal */}
       {showEventLog && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 2000,
-          padding: '20px'
-        }}
-        onClick={() => setShowEventLog(false)}
-        >
-          <div 
-            style={{
-              ...cardStyle,
-              maxWidth: '800px',
-              width: '100%',
-              maxHeight: '80vh',
-              position: 'relative'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ 
-                fontSize: '1.5rem', 
-                fontWeight: 600, 
-                margin: 0,
-                background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
-                📊 Live Event Log
-              </h3>
+        <div className="modal-overlay" onClick={() => setShowEventLog(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-brand text-xl">📊 Live Event Log</h3>
               <button
                 onClick={() => setShowEventLog(false)}
-                style={{
-                  background: 'rgba(239, 68, 68, 0.2)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: '8px',
-                  color: '#ef4444',
-                  padding: '8px 12px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: 600
-                }}
+                className="btn btn-danger text-sm px-3 py-1"
               >
                 ✕ Close
               </button>
             </div>
-            <div ref={logRef} style={{ 
-              maxHeight: '60vh', 
-              overflowY: 'auto', 
-              background: 'rgba(0, 0, 0, 0.3)',
-              border: '1px solid rgba(255, 255, 255, 0.1)', 
-              padding: '16px', 
-              borderRadius: '12px', 
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, monospace', 
-              fontSize: '12px',
-              lineHeight: 1.4
-            }}>
+            
+            <div 
+              ref={logRef}
+              className="bg-black bg-opacity-30 border border-white border-opacity-10 rounded-lg p-4 max-h-96 overflow-y-auto"
+              style={{ fontFamily: 'var(--font-mono)' }}
+            >
               {logs.length === 0 ? (
-                <div style={{ opacity: 0.5, textAlign: 'center', padding: '40px 0' }}>
-                  🔍 Waiting for events...
-                  <br />
-                  <small style={{ fontSize: '11px', marginTop: '8px', display: 'block' }}>
+                <div className="text-center py-12 opacity-50">
+                  <div className="text-2xl mb-2">🔍</div>
+                  <p className="text-sm">Waiting for events...</p>
+                  <p className="text-xs mt-2 opacity-70">
                     Events will appear here when posts are created or flagged
-                  </small>
+                  </p>
                 </div>
               ) : (
-                logs.map((l, i) => (
-                  <div key={i} style={{ 
-                    marginBottom: '8px',
-                    padding: '8px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    borderRadius: '6px',
-                    borderLeft: '3px solid #8b5cf6'
-                  }}>
-                    {l}
+                logs.map((log, i) => (
+                  <div 
+                    key={i} 
+                    className="mb-2 p-2 bg-white bg-opacity-5 rounded border-l-2 border-emerald-500 text-xs"
+                  >
+                    {log}
                   </div>
                 ))
               )}
+            </div>
+            
+            <div className="flex gap-2 mt-4">
+              <button className="btn btn-secondary text-sm">
+                Clear Log
+              </button>
+              <button className="btn btn-secondary text-sm">
+                Export Log
+              </button>
             </div>
           </div>
         </div>
