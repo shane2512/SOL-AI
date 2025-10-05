@@ -246,71 +246,124 @@ def handle_post(post_id, author, content):
     """Handle a single post for moderation"""
     global agent_stats
     
+    print(f"\n{'='*60}")
+    print(f"🔍 ANALYZING NEW POST #{post_id}")
+    print(f"{'='*60}")
+    print(f"📝 Author: {author}")
+    print(f"📄 Content: '{content}'")
+    print(f"📏 Length: {len(content)} characters")
+    print(f"⏰ Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
+    
     try:
+        print(f"\n🤖 Starting AI Analysis...")
         score_bp = score_toxicity(content)
         agent_stats["posts_processed"] += 1
         
-        print(f"Post {post_id}: toxicity={score_bp}bp, threshold={THRESHOLD_BP}bp")
+        score_percentage = score_bp / 100
+        threshold_percentage = THRESHOLD_BP / 100
+        
+        print(f"\n📊 ANALYSIS RESULTS:")
+        print(f"   Toxicity Score: {score_percentage:.2f}% ({score_bp} BP)")
+        print(f"   Threshold: {threshold_percentage:.2f}% ({THRESHOLD_BP} BP)")
+        print(f"   Model Used: {'toxic-bert' if HF_API_AVAILABLE else 'keyword-based'}")
         
         if score_bp >= THRESHOLD_BP:
-            print(f"🚨 TOXIC CONTENT DETECTED! Post {post_id} scored {score_bp}bp (threshold: {THRESHOLD_BP}bp)")
-            print(f"Content: '{content[:100]}...'")
+            print(f"\n🚨 TOXIC CONTENT DETECTED!")
+            print(f"   ⚠️ Post {post_id} exceeds toxicity threshold")
+            print(f"   📊 Score: {score_percentage:.2f}% > Threshold: {threshold_percentage:.2f}%")
+            print(f"   📝 Content Preview: '{content[:100]}{'...' if len(content) > 100 else ''}'")
             
             if moderator and acct:
                 # Check if we've already flagged this post in our session
                 if post_id in flagged_posts_cache:
-                    print(f"⚠️ Post {post_id} already flagged by this agent, skipping")
+                    print(f"   ⚠️ Post {post_id} already flagged by this agent, skipping blockchain transaction")
+                    print(f"{'='*60}")
                     return {"flagged": False, "score": score_bp, "already_flagged": True}
                 
-                # Skip on-chain flagged check since contract ABI doesn't have isPostFlagged
-                # We'll rely on our cache and handle "already flagged" errors gracefully
+                print(f"\n🏴 INITIATING BLOCKCHAIN FLAGGING PROCESS...")
                 
                 # Flag the post
                 try:
-                    print(f"🏴 Flagging post {post_id} with toxicity {score_bp}bp")
-                    
                     # Use appropriate model name
                     model_name_for_tx = "toxic-bert" if HF_API_AVAILABLE else "keyword-based"
+                    print(f"   🔧 Model for transaction: {model_name_for_tx}")
                     
+                    print(f"   ⛽ Estimating gas for flagPost transaction...")
                     gas_estimate = moderator.functions.flagPost(post_id, score_bp, model_name_for_tx).estimate_gas({'from': acct.address})
+                    print(f"   ⛽ Gas estimate: {gas_estimate}")
+                    
+                    print(f"   📝 Building transaction...")
+                    nonce = w3.eth.get_transaction_count(acct.address)
+                    print(f"   🔢 Account nonce: {nonce}")
                     
                     tx = moderator.functions.flagPost(post_id, score_bp, model_name_for_tx).build_transaction({
                         "from": acct.address,
-                        "nonce": w3.eth.get_transaction_count(acct.address),
+                        "nonce": nonce,
                         "chainId": CHAIN_ID or w3.eth.chain_id,
                         "gas": int(gas_estimate * 1.2),
                         "gasPrice": w3.to_wei("10", "gwei"),
                     })
                     
+                    print(f"   ✍️ Signing transaction...")
                     signed = acct.sign_transaction(tx)
-                    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
                     
+                    print(f"   📤 Sending transaction to blockchain...")
+                    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+                    print(f"   🔗 Transaction hash: {tx_hash.hex()}")
+                    
+                    print(f"   ⏳ Waiting for transaction confirmation...")
                     receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+                    print(f"   ✅ Transaction confirmed! Block: {receipt.blockNumber}")
                     
                     # Add to our cache and update stats
                     flagged_posts_cache.add(post_id)
                     agent_stats["posts_flagged"] += 1
-                    print(f"✅ Post {post_id} flagged! Tx: {tx_hash.hex()}")
+                    
+                    print(f"\n🎉 POST SUCCESSFULLY FLAGGED!")
+                    print(f"   📊 Total posts processed: {agent_stats['posts_processed']}")
+                    print(f"   🚩 Total posts flagged: {agent_stats['posts_flagged']}")
+                    print(f"   🔗 Transaction: {tx_hash.hex()}")
+                    print(f"{'='*60}")
+                    
                     return {"flagged": True, "tx_hash": tx_hash.hex(), "score": score_bp}
                     
                 except Exception as flag_error:
                     error_msg = str(flag_error).lower()
+                    print(f"\n❌ FLAGGING FAILED!")
+                    print(f"   🚨 Error: {flag_error}")
+                    
                     if "already flagged" in error_msg:
-                        print(f"⚠️ Post {post_id} already flagged (contract error)")
+                        print(f"   ℹ️ Reason: Post {post_id} already flagged on blockchain")
                         flagged_posts_cache.add(post_id)  # Add to cache to prevent future attempts
+                        print(f"   ✅ Added to local cache to prevent future attempts")
+                        print(f"{'='*60}")
                         return {"flagged": False, "score": score_bp, "already_flagged": True}
                     else:
-                        print(f"❌ Flagging failed for post {post_id}: {flag_error}")
+                        print(f"   ❌ Unexpected error during blockchain transaction")
+                        print(f"   📝 Error details: {flag_error}")
+                        print(f"{'='*60}")
                         return {"flagged": False, "score": score_bp, "error": str(flag_error)}
             else:
-                print(f"⚠️ Cannot flag - missing moderator contract or account")
+                print(f"\n❌ CANNOT FLAG POST!")
+                print(f"   ⚠️ Missing moderator contract or agent account")
+                print(f"   🔧 Contract available: {moderator is not None}")
+                print(f"   🔑 Account available: {acct is not None}")
+                print(f"{'='*60}")
                 return {"flagged": False, "score": score_bp, "error": "Missing contract/account"}
         else:
-            print(f"Post {post_id} deemed safe")
+            print(f"\n✅ POST DEEMED SAFE")
+            print(f"   📊 Score: {score_percentage:.2f}% < Threshold: {threshold_percentage:.2f}%")
+            print(f"   ✅ No action required - content is within acceptable limits")
+            print(f"   📊 Total posts processed: {agent_stats['posts_processed']}")
+            print(f"{'='*60}")
             return {"flagged": False, "score": score_bp}
             
     except Exception as e:
-        print(f"Error handling post {post_id}: {e}")
+        print(f"\n💥 CRITICAL ERROR HANDLING POST!")
+        print(f"   🚨 Post ID: {post_id}")
+        print(f"   ❌ Error: {e}")
+        print(f"   📝 Content: '{content[:50]}{'...' if len(content) > 50 else ''}'")
+        print(f"{'='*60}")
         return {"error": str(e)}
 
 def monitoring_loop():
@@ -337,7 +390,10 @@ def monitoring_loop():
             
             if total_posts > last_checked_post_id:
                 new_posts_count = total_posts - last_checked_post_id
-                print(f"🆕 Found {new_posts_count} new posts (processing {last_checked_post_id + 1} to {total_posts})")
+                print(f"\n🆕 NEW POSTS DETECTED!")
+                print(f"   📊 Found {new_posts_count} new post(s)")
+                print(f"   🔄 Processing posts {last_checked_post_id + 1} to {total_posts}")
+                print(f"   ⏰ Check time: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
                 
                 for post_id in range(last_checked_post_id + 1, total_posts + 1):
                     if not monitoring_active:
@@ -345,14 +401,19 @@ def monitoring_loop():
                         
                     try:
                         post = social.functions.getPost(post_id).call()
-                        print(f"📝 Processing NEW post {post_id}")
+                        print(f"\n📥 FETCHED POST #{post_id} FROM BLOCKCHAIN")
                         handle_post(post[0], post[1], post[2])  # id, author, content
                     except Exception as e:
-                        print(f"Error processing post {post_id}: {e}")
+                        print(f"\n❌ ERROR FETCHING POST #{post_id}")
+                        print(f"   🚨 Error: {e}")
+                        print(f"{'='*60}")
                 
                 last_checked_post_id = total_posts
+                print(f"\n✅ MONITORING UPDATE: Now watching for posts after #{total_posts}")
             else:
                 # No new posts, just update last check time
+                current_time = time.strftime('%H:%M:%S', time.gmtime())
+                print(f"🔍 [{current_time}] Monitoring active - No new posts (total: {total_posts})")
                 pass
             
         except Exception as e:
@@ -424,6 +485,15 @@ def start_monitoring():
     
     monitoring_active = True
     agent_stats["status"] = "running"
+    
+    print(f"\n🚀 STARTING AI MODERATION MONITORING")
+    print(f"{'='*60}")
+    print(f"🤖 Agent: SOL AI Moderator")
+    print(f"🧠 Model: {'toxic-bert' if HF_API_AVAILABLE else 'keyword-based'}")
+    print(f"🎯 Threshold: {THRESHOLD_BP/100}% ({THRESHOLD_BP} BP)")
+    print(f"🔗 Agent Address: {acct.address if acct else 'N/A'}")
+    print(f"⏰ Started: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
+    print(f"{'='*60}")
     
     # Start monitoring in background thread
     monitor_thread = threading.Thread(target=monitoring_loop, daemon=True)
