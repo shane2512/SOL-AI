@@ -2,6 +2,7 @@ import json
 import os
 import time
 import threading
+import requests
 from decimal import Decimal
 from pathlib import Path
 from flask import Flask, jsonify, request
@@ -12,21 +13,18 @@ print('=== AGENT STARTUP BEGIN ===')
 print(f'ENV: SOMNIA_RPC_URL={os.getenv("SOMNIA_RPC_URL")}')
 print(f'ENV: SOCIAL_POSTS_ADDRESS={os.getenv("SOCIAL_POSTS_ADDRESS")}')
 print(f'ENV: MODERATOR_ADDRESS={os.getenv("MODERATOR_ADDRESS")}')
-print(f'ENV: AGENT_PRIVATE_KEY={os.getenv("AGENT_PRIVATE_KEY")[:8]}...')
-print(f'ENV: MODEL_NAME={os.getenv("MODEL_NAME")}')
-print(f'ENV: GEMINI_API_KEY={os.getenv("GEMINI_API_KEY")[:8]}...')
+agent_key = os.getenv("AGENT_PRIVATE_KEY")
+print(f'ENV: AGENT_PRIVATE_KEY={agent_key[:8] + "..." if agent_key else "None"}')
+hf_token = os.getenv("HF_TOKEN")
+print(f'ENV: HF_TOKEN={hf_token[:8] + "..." if hf_token else "None"}')
 print('=== AGENT STARTUP END ===')
 
-# Lightweight AI API imports
-try:
-    import google.generativeai as genai
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
-    print("Gemini API not available, using keyword detection")
-
-# Conditional import for transformers (heavy dependency - disabled by default)
-TRANSFORMERS_AVAILABLE = False  # Disabled to save memory
+# Hugging Face API setup
+HF_TOKEN = os.getenv("HF_TOKEN", "")
+HF_API_URL = "https://api-inference.huggingface.co/models/unitary/toxic-bert"
+HF_HEADERS = {
+    "Authorization": f"Bearer {HF_TOKEN}",
+} if HF_TOKEN else {}
 from web3 import Web3
 # Handle different Web3.py versions
 geth_poa_middleware = None
@@ -56,8 +54,7 @@ CHAIN_ID = int(os.getenv("CHAIN_ID", "0") or 0)
 SOCIAL_ADDR = Web3.to_checksum_address(os.getenv("SOCIAL_POSTS_ADDRESS", "0x0000000000000000000000000000000000000000"))
 MODERATOR_ADDR = Web3.to_checksum_address(os.getenv("MODERATOR_ADDRESS", "0x0000000000000000000000000000000000000000"))
 AGENT_PRIV = os.getenv("AGENT_PRIVATE_KEY", "")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-1.5-flash")  # Lightweight Gemini model
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+MODEL_NAME = "unitary/toxic-bert"  # Hugging Face toxic-bert model
 THRESHOLD_BP = int(os.getenv("TOXICITY_THRESHOLD_BP", "2500"))  # Lowered to 25%
 
 # Global variables for monitoring
@@ -127,153 +124,123 @@ if w3 and SOCIAL_ABI and MOD_ABI:
     except Exception as e:
         print(f"Warning: Could not initialize contracts: {e}")
 
-# Initialize Gemini AI models with rate limiting support
-gemini_models = []
-current_model_index = 0
-
-if GEMINI_AVAILABLE and GEMINI_API_KEY:
+# Initialize Hugging Face API
+def test_huggingface_api():
+    """Test Hugging Face API connection"""
+    if not HF_TOKEN:
+        print("❌ HF_TOKEN not provided, using keyword-based detection")
+        return False
+    
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
+        # Test with a simple non-toxic message
+        test_response = requests.post(
+            HF_API_URL, 
+            headers=HF_HEADERS, 
+            json={"inputs": "Hello, how are you?"},
+            timeout=30
+        )
         
-        # Your specified model names in order of preference
-        model_names_to_try = [
-            "gemini-2.5-pro",
-            "gemini-flash-latest", 
-            "gemini-2.5-flash",
-            "gemini-2.5-flash-lite",
-            "gemini-2.0-flash-lite",
-            "gemini-2.0-flash"
-        ]
-        
-        print(f"🔍 Testing {len(model_names_to_try)} Gemini models...")
-        for model_name in model_names_to_try:
-            try:
-                model = genai.GenerativeModel(model_name)
-                # Test the model with a simple request
-                test_response = model.generate_content("Rate toxicity of 'hello' from 0-100. Just number.")
-                gemini_models.append({"name": model_name, "model": model})
-                print(f"✅ {model_name}: Working")
-            except Exception as model_error:
-                print(f"❌ {model_name}: {model_error}")
-                continue
-        
-        if gemini_models:
-            print(f"🎉 Initialized {len(gemini_models)} working Gemini models")
+        if test_response.status_code == 200:
+            result = test_response.json()
+            print(f"✅ Hugging Face toxic-bert API working: {result}")
+            return True
         else:
-            print("❌ No Gemini models available, using keyword detection")
+            print(f"❌ Hugging Face API test failed: {test_response.status_code} - {test_response.text}")
+            return False
             
     except Exception as e:
-        print(f"Warning: Could not configure Gemini API: {e}")
-        print("Falling back to keyword-based detection")
-else:
-    if not GEMINI_API_KEY:
-        print("GEMINI_API_KEY not provided, using keyword-based detection")
-    else:
-        print("Gemini not available, using keyword-based detection")
+        print(f"❌ Hugging Face API test error: {e}")
+        return False
 
-def get_next_gemini_model():
-    """Get next available Gemini model for rate limit handling"""
-    global current_model_index
-    if not gemini_models:
-        return None
-    
-    model_info = gemini_models[current_model_index]
-    current_model_index = (current_model_index + 1) % len(gemini_models)
-    return model_info
+# Test the API on startup
+HF_API_AVAILABLE = test_huggingface_api()
 
 
 def score_toxicity(text: str) -> int:
-    """Score toxicity of text, return basis points (0-10000)"""
+    """Score toxicity of text using Hugging Face toxic-bert model, return basis points (0-10000)"""
     
-    # Try Gemini API with rate limit handling
-    if gemini_models:
-        max_attempts = min(3, len(gemini_models))  # Try up to 3 models
-        
-        for attempt in range(max_attempts):
-            model_info = get_next_gemini_model()
-            if not model_info:
-                break
+    # Try Hugging Face toxic-bert API first
+    if HF_API_AVAILABLE and HF_TOKEN:
+        try:
+            print(f"🔍 Analyzing with toxic-bert: '{text[:50]}...'")
+            
+            response = requests.post(
+                HF_API_URL,
+                headers=HF_HEADERS,
+                json={"inputs": text},
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
                 
-            try:
-                prompt = f"""
-Analyze toxicity: "{text}"
-
-Rate 0-100:
-• 0-25: Safe
-• 26-50: Mild
-• 51-75: Moderate
-• 76-100: High toxicity
-
-Just return the number (0-100).
-"""
-                
-                response = model_info["model"].generate_content(prompt)
-                response_text = response.text.strip()
-                
-                # Extract number from response
-                import re
-                number_match = re.search(r'\b(\d{1,3})\b', response_text)
-                if number_match:
-                    toxicity_percentage = int(number_match.group(1))
-                    toxicity_percentage = min(max(toxicity_percentage, 0), 100)
-                    toxicity_bp = toxicity_percentage * 100
+                # toxic-bert returns a list of classifications
+                # Format: [{'label': 'toxic', 'score': 0.xxx}, {'label': 'obscene', 'score': 0.xxx}, ...]
+                if isinstance(result, list) and len(result) > 0:
+                    # Find the toxic score
+                    toxic_score = 0.0
+                    for classification in result[0]:  # First element contains the classifications
+                        if classification.get('label') == 'toxic':
+                            toxic_score = classification.get('score', 0.0)
+                            break
                     
-                    print(f"✅ {model_info['name']}: {toxicity_percentage}% ({toxicity_bp} BP)")
+                    # Convert to basis points (0-10000)
+                    toxicity_bp = int(toxic_score * 10000)
+                    toxicity_percentage = round(toxic_score * 100, 2)
+                    
+                    print(f"✅ toxic-bert result: {toxicity_percentage}% ({toxicity_bp} BP)")
+                    print(f"📊 Full classification: {result[0]}")
+                    
                     return toxicity_bp
                 else:
-                    raise ValueError(f"Invalid response: '{response_text}'")
+                    print(f"⚠️ Unexpected API response format: {result}")
                     
-            except Exception as e:
-                error_str = str(e).lower()
-                if "rate limit" in error_str or "quota" in error_str or "429" in error_str:
-                    print(f"⚠️ Rate limit on {model_info['name']}, trying next model...")
-                    continue
-                else:
-                    print(f"❌ {model_info['name']} error: {e}")
-                    if attempt == max_attempts - 1:  # Last attempt
-                        print("🔄 All Gemini models failed, using keyword detection")
-                        break
-                    continue
-        
-        # If we get here, all Gemini attempts failed
-    
-    # Fallback to keyword-based detection
-    if True:
-        # Enhanced keyword-based detection
-        toxic_keywords = {
-            'high': ['kill', 'die', 'murder', 'suicide', 'terrorist', 'bomb', 'weapon', 'fuck'],
-            'medium': ['hate', 'stupid', 'idiot', 'moron', 'loser', 'pathetic', 'disgusting', 'bastard', 'bloody'],
-            'low': ['damn', 'hell', 'crap', 'sucks', 'annoying', 'boring']
-        }
-        
-        lower_text = text.lower()
-        score = 500  # Base score (5%)
-        
-        # Check for high toxicity keywords
-        for keyword in toxic_keywords['high']:
-            if keyword in lower_text:
-                score += 2500  # Add 25% per high-toxicity word
-        
-        # Check for medium toxicity keywords  
-        for keyword in toxic_keywords['medium']:
-            if keyword in lower_text:
-                score += 1500  # Add 15% per medium-toxicity word
+            elif response.status_code == 503:
+                print("⚠️ Model is loading, falling back to keyword detection...")
+            else:
+                print(f"❌ API request failed: {response.status_code} - {response.text}")
                 
-        # Check for low toxicity keywords
-        for keyword in toxic_keywords['low']:
-            if keyword in lower_text:
-                score += 800   # Add 8% per low-toxicity word
-        
-        # Cap at 9500 (95%)
-        return min(score, 9500)
+        except requests.exceptions.Timeout:
+            print("⚠️ API request timed out, falling back to keyword detection...")
+        except Exception as e:
+            print(f"❌ Hugging Face API error: {e}")
     
-    try:
-        res = clf(text)[0]
-        score_bp = int(Decimal(res.get("score", 0)) * 10000)
-        return score_bp
-    except Exception as e:
-        print(f"Error in toxicity scoring: {e}")
-        return 1000  # Default to 10%
+    # Fallback to enhanced keyword-based detection
+    print("🔄 Using keyword-based detection as fallback")
+    
+    # Enhanced keyword-based detection with more comprehensive lists
+    toxic_keywords = {
+        'high': ['kill', 'die', 'murder', 'suicide', 'terrorist', 'bomb', 'weapon', 'fuck', 'shit', 'bitch', 'asshole', 'cunt'],
+        'medium': ['hate', 'stupid', 'idiot', 'moron', 'loser', 'pathetic', 'disgusting', 'bastard', 'bloody', 'damn', 'retard'],
+        'low': ['hell', 'crap', 'sucks', 'annoying', 'boring', 'lame', 'dumb', 'weird']
+    }
+    
+    lower_text = text.lower()
+    score = 300  # Base score (3%)
+    
+    # Check for high toxicity keywords
+    for keyword in toxic_keywords['high']:
+        if keyword in lower_text:
+            score += 3000  # Add 30% per high-toxicity word
+            print(f"🚨 High toxicity keyword detected: '{keyword}'")
+    
+    # Check for medium toxicity keywords  
+    for keyword in toxic_keywords['medium']:
+        if keyword in lower_text:
+            score += 1500  # Add 15% per medium-toxicity word
+            print(f"⚠️ Medium toxicity keyword detected: '{keyword}'")
+            
+    # Check for low toxicity keywords
+    for keyword in toxic_keywords['low']:
+        if keyword in lower_text:
+            score += 800   # Add 8% per low-toxicity word
+            print(f"💭 Low toxicity keyword detected: '{keyword}'")
+    
+    # Cap at 9500 (95%)
+    final_score = min(score, 9500)
+    print(f"📊 Keyword-based score: {final_score/100}% ({final_score} BP)")
+    
+    return final_score
 
 def handle_post(post_id, author, content):
     """Handle a single post for moderation"""
@@ -303,7 +270,7 @@ def handle_post(post_id, author, content):
                     print(f"🏴 Flagging post {post_id} with toxicity {score_bp}bp")
                     
                     # Use appropriate model name
-                    model_name_for_tx = "gemini-ai" if gemini_models else "keyword-based"
+                    model_name_for_tx = "toxic-bert" if HF_API_AVAILABLE else "keyword-based"
                     
                     gas_estimate = moderator.functions.flagPost(post_id, score_bp, model_name_for_tx).estimate_gas({'from': acct.address})
                     
