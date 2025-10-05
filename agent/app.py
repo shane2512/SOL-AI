@@ -379,10 +379,10 @@ def health():
         "status": "healthy",
         "web3_connected": w3 is not None,
         "contracts_loaded": social is not None and moderator is not None,
-        "ai_model_loaded": len(gemini_models) > 0,
-        "ai_model_type": "gemini" if gemini_models else "keyword-based",
-        "gemini_models_count": len(gemini_models),
-        "available_models": [m["name"] for m in gemini_models],
+        "ai_model_loaded": HF_API_AVAILABLE,
+        "ai_model_type": "toxic-bert" if HF_API_AVAILABLE else "keyword-based",
+        "hf_token_available": bool(HF_TOKEN),
+        "model_name": MODEL_NAME,
         "agent_account": acct.address if acct else None,
         "monitoring_active": monitoring_active,
         "stats": agent_stats
@@ -391,13 +391,16 @@ def health():
 @app.route('/diagnostics')
 def diagnostics():
     """Return all key config/env values for debugging"""
+    agent_key = os.getenv("AGENT_PRIVATE_KEY")
+    hf_token = os.getenv("HF_TOKEN")
     return jsonify({
         "SOMNIA_RPC_URL": os.getenv("SOMNIA_RPC_URL"),
         "SOCIAL_POSTS_ADDRESS": os.getenv("SOCIAL_POSTS_ADDRESS"),
         "MODERATOR_ADDRESS": os.getenv("MODERATOR_ADDRESS"),
-        "AGENT_PRIVATE_KEY": os.getenv("AGENT_PRIVATE_KEY")[:8] + "...",
-        "MODEL_NAME": os.getenv("MODEL_NAME"),
-        "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY")[:8] + "...",
+        "AGENT_PRIVATE_KEY": agent_key[:8] + "..." if agent_key else "None",
+        "MODEL_NAME": MODEL_NAME,
+        "HF_TOKEN": hf_token[:8] + "..." if hf_token else "None",
+        "HF_API_AVAILABLE": HF_API_AVAILABLE,
         "w3": str(w3),
         "social": str(social),
         "moderator": str(moderator),
