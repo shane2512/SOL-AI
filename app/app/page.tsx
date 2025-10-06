@@ -261,8 +261,8 @@ export default function Home() {
       <nav className="sidebar">
         <div className="sidebar-header">
           <div className="logo">
-            <div className="logo-icon">🤖</div>
             <h1 className="logo-text">SOL AI</h1>
+            <span className="logo-subtitle">Decentralized Social</span>
           </div>
         </div>
 
@@ -270,15 +270,12 @@ export default function Home() {
           <h3 className="nav-section-title">Main</h3>
           <div className="nav-items">
             <button className={`nav-item ${activeFilter === 'all' ? 'active' : ''}`} onClick={() => setActiveFilter('all')}>
-              <span className="nav-icon">🏠</span>
               <span className="nav-label">Feed</span>
             </button>
             <button className={`nav-item ${showProfile ? 'active' : ''}`} onClick={() => setShowProfile(true)}>
-              <span className="nav-icon">👤</span>
               <span className="nav-label">Profile</span>
             </button>
             <button className="nav-item" onClick={() => setShowEventLog(true)}>
-              <span className="nav-icon">📊</span>
               <span className="nav-label">Analytics</span>
             </button>
           </div>
@@ -288,7 +285,6 @@ export default function Home() {
           <h3 className="nav-section-title">AI Moderation</h3>
           <div className="nav-items">
             <button className="nav-item" onClick={() => setShowFlaggedPosts(true)}>
-              <span className="nav-icon">🛡️</span>
               <span className="nav-label">Moderation</span>
               {flaggedPosts.length > 0 && (
                 <span className="nav-badge">{flaggedPosts.length}</span>
@@ -302,8 +298,8 @@ export default function Home() {
           <div className="wallet-section">
             <button onClick={connectWallet} className={`wallet-btn ${account ? 'connected' : ''}`}>
               <div className="wallet-status">
-                <span className="wallet-icon">{account ? '🟢' : '🔴'}</span>
-                <span className="wallet-text">{account ? 'Connected' : 'Connect'}</span>
+                <span className="wallet-icon">{account ? '●' : '○'}</span>
+                <span className="wallet-text">{account ? 'Connected' : 'Connect Wallet'}</span>
               </div>
               {account && (
                 <div className="wallet-address">{getDisplayName(account)}</div>
@@ -318,10 +314,9 @@ export default function Home() {
         {/* Top Header */}
         <header className="top-header">
           <div className="search-container">
-            <div className="search-icon">🔍</div>
             <input
               type="text"
-              placeholder="Search posts, users, NFTs..."
+              placeholder="Search posts and users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="search-input"
@@ -330,8 +325,8 @@ export default function Home() {
           
           <div className="header-actions">
             <button className="create-post-btn" onClick={() => setShowCreatePost(true)}>
-              <span>✍️</span>
-              <span>Create Post</span>
+              <span>+</span>
+              <span>New Post</span>
             </button>
           </div>
         </header>
@@ -384,7 +379,7 @@ export default function Home() {
                 <button className={`feed-tab ${activeFilter === 'recent' ? 'active' : ''}`} onClick={() => setActiveFilter('recent')}>Recent</button>
               </div>
               <button onClick={loadPosts} className="refresh-btn" title="Refresh Feed">
-                🔄
+                ↻
               </button>
             </div>
 
@@ -404,7 +399,7 @@ export default function Home() {
                       <div className="post-time">Just now</div>
                     </div>
                     <div className={`moderation-badge ${post.flagged ? 'flagged' : 'safe'}`}>
-                      {post.flagged ? '🚩 Flagged' : '✅ Safe'}
+                      {post.flagged ? 'Flagged' : 'Safe'}
                     </div>
                   </div>
                   
@@ -417,7 +412,6 @@ export default function Home() {
               
               {filteredPosts.length === 0 && (
                 <div className="empty-state">
-                  <div className="empty-icon">📭</div>
                   <h3 className="empty-title">No posts found</h3>
                   <p className="empty-description">
                     {searchQuery ? 'Try adjusting your search terms' : 'Be the first to create a post!'}
@@ -545,7 +539,7 @@ export default function Home() {
       {showCreatePost && (
         <div className="modal-overlay" onClick={() => setShowCreatePost(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-brand text-xl mb-6">✍️ Create a Post</h3>
+            <h3 className="text-brand text-xl mb-6">Create a Post</h3>
             
             <textarea
               value={postInput}
@@ -571,7 +565,7 @@ export default function Home() {
                   disabled={!postInput.trim()}
                   className="btn btn-primary"
                 >
-                  🚀 Post to Blockchain
+                  Post to Blockchain
                 </button>
               </div>
             </div>
