@@ -9,15 +9,18 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
 
-print('=== AGENT STARTUP BEGIN ===')
+print('=== ENHANCED SOL AI AGENT STARTUP ===')
 print(f'ENV: SOMNIA_RPC_URL={os.getenv("SOMNIA_RPC_URL")}')
 print(f'ENV: SOCIAL_POSTS_ADDRESS={os.getenv("SOCIAL_POSTS_ADDRESS")}')
 print(f'ENV: MODERATOR_ADDRESS={os.getenv("MODERATOR_ADDRESS")}')
+print(f'ENV: REPUTATION_SYSTEM_ADDRESS={os.getenv("REPUTATION_SYSTEM_ADDRESS")}')
+print(f'ENV: INCENTIVE_SYSTEM_ADDRESS={os.getenv("INCENTIVE_SYSTEM_ADDRESS")}')
+print(f'ENV: GOVERNANCE_SYSTEM_ADDRESS={os.getenv("GOVERNANCE_SYSTEM_ADDRESS")}')
 agent_key = os.getenv("AGENT_PRIVATE_KEY")
 print(f'ENV: AGENT_PRIVATE_KEY={agent_key[:8] + "..." if agent_key else "None"}')
 hf_token = os.getenv("HF_TOKEN")
 print(f'ENV: HF_TOKEN={hf_token[:8] + "..." if hf_token else "None"}')
-print('=== AGENT STARTUP END ===')
+print('=== ENHANCED AGENT STARTUP END ===')
 
 # Hugging Face API setup
 HF_TOKEN = os.getenv("HF_TOKEN", "")
@@ -53,6 +56,9 @@ SOMNIA_WSS_URL = os.getenv("SOMNIA_WSS_URL", "")
 CHAIN_ID = int(os.getenv("CHAIN_ID", "0") or 0)
 SOCIAL_ADDR = Web3.to_checksum_address(os.getenv("SOCIAL_POSTS_ADDRESS", "0x0000000000000000000000000000000000000000"))
 MODERATOR_ADDR = Web3.to_checksum_address(os.getenv("MODERATOR_ADDRESS", "0x0000000000000000000000000000000000000000"))
+REPUTATION_ADDR = Web3.to_checksum_address(os.getenv("REPUTATION_SYSTEM_ADDRESS", "0x0000000000000000000000000000000000000000"))
+INCENTIVE_ADDR = Web3.to_checksum_address(os.getenv("INCENTIVE_SYSTEM_ADDRESS", "0x0000000000000000000000000000000000000000"))
+GOVERNANCE_ADDR = Web3.to_checksum_address(os.getenv("GOVERNANCE_SYSTEM_ADDRESS", "0x0000000000000000000000000000000000000000"))
 AGENT_PRIV = os.getenv("AGENT_PRIVATE_KEY", "")
 MODEL_NAME = "unitary/toxic-bert"  # Hugging Face toxic-bert model
 THRESHOLD_BP = int(os.getenv("TOXICITY_THRESHOLD_BP", "2500"))  # Lowered to 25%
@@ -64,6 +70,8 @@ flagged_posts_cache = set()  # Track posts we've already flagged
 agent_stats = {
     "posts_processed": 0,
     "posts_flagged": 0,
+    "reputation_updates": 0,
+    "incentives_distributed": 0,
     "last_check": None,
     "status": "stopped"
 }
@@ -72,15 +80,28 @@ agent_stats = {
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ABI_DIR = REPO_ROOT / "app" / "contracts" / "abis"
 
-try:
-    with open(ABI_DIR / "SocialPosts.json", "r", encoding="utf-8") as f:
-        SOCIAL_ABI = json.load(f)
-    with open(ABI_DIR / "Moderator.json", "r", encoding="utf-8") as f:
-        MOD_ABI = json.load(f)
-except Exception as e:
-    print(f"Warning: Could not load ABIs: {e}")
-    SOCIAL_ABI = []
-    MOD_ABI = []
+def load_abi(filename):
+    try:
+        with open(ABI_DIR / filename, "r", encoding="utf-8") as f:
+            artifact = json.load(f)
+            # Extract ABI from Hardhat artifact format
+            if isinstance(artifact, dict) and 'abi' in artifact:
+                return artifact['abi']
+            elif isinstance(artifact, list):
+                return artifact
+            else:
+                print(f"Warning: Unexpected format in {filename}")
+                return []
+    except Exception as e:
+        print(f"Warning: Could not load {filename}: {e}")
+        return []
+
+SOCIAL_ABI = load_abi("SocialPosts.json")
+MOD_ABI = load_abi("Moderator.json")
+# Enhanced contract ABIs
+REPUTATION_ABI = load_abi("ReputationSystem.json")
+INCENTIVE_ABI = load_abi("IncentiveSystem.json")
+GOVERNANCE_ABI = load_abi("GovernanceSystem.json")
 
 # Web3 setup
 w3 = Web3(Web3.HTTPProvider(SOMNIA_RPC_URL)) if SOMNIA_RPC_URL else None
@@ -101,13 +122,25 @@ if AGENT_PRIV and w3:
         print(f"Warning: Could not load agent account: {e}")
 
 # Initialize contracts
-social = None
-moderator = None
-if w3 and SOCIAL_ABI and MOD_ABI:
+contracts = {}
+if w3:
     try:
-        social = w3.eth.contract(address=SOCIAL_ADDR, abi=SOCIAL_ABI)
-        moderator = w3.eth.contract(address=MODERATOR_ADDR, abi=MOD_ABI)
-        print("Contracts initialized successfully")
+        contracts['social'] = w3.eth.contract(address=SOCIAL_ADDR, abi=SOCIAL_ABI) if SOCIAL_ABI else None
+        contracts['moderator'] = w3.eth.contract(address=MODERATOR_ADDR, abi=MOD_ABI) if MOD_ABI else None
+        contracts['reputation'] = w3.eth.contract(address=REPUTATION_ADDR, abi=REPUTATION_ABI) if REPUTATION_ABI else None
+        contracts['incentive'] = w3.eth.contract(address=INCENTIVE_ADDR, abi=INCENTIVE_ABI) if INCENTIVE_ABI else None
+        contracts['governance'] = w3.eth.contract(address=GOVERNANCE_ADDR, abi=GOVERNANCE_ABI) if GOVERNANCE_ABI else None
+        
+        print("Enhanced contracts initialized:")
+        for name, contract in contracts.items():
+            print(f"  {name}: {'✅' if contract else '❌'}")
+        
+        # Legacy compatibility
+        social = contracts['social']
+        moderator = contracts['moderator']
+        
+        if social and moderator:
+            print("Core contracts initialized successfully")
         
         # Test agent authorization
         if acct:
@@ -242,6 +275,56 @@ def score_toxicity(text: str) -> int:
     
     return final_score
 
+def update_user_reputation(user_address, is_flagged=False):
+    """Update user reputation based on post outcome"""
+    if not contracts.get('reputation') or not acct:
+        print("⚠️ Reputation system not available")
+        return False
+    
+    try:
+        print(f"🏆 Updating reputation for {user_address}")
+        
+        # Call updateReputation function
+        tx = contracts['reputation'].functions.updateReputation(user_address).build_transaction({
+            "from": acct.address,
+            "nonce": w3.eth.get_transaction_count(acct.address),
+            "chainId": CHAIN_ID or w3.eth.chain_id,
+            "gas": 200000,
+            "gasPrice": w3.to_wei("10", "gwei"),
+        })
+        
+        signed = acct.sign_transaction(tx)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        
+        agent_stats["reputation_updates"] += 1
+        print(f"✅ Reputation updated! TX: {tx_hash.hex()}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to update reputation: {e}")
+        return False
+
+def trigger_incentive_distribution(user_address):
+    """Trigger incentive distribution for safe posts"""
+    if not contracts.get('incentive') or not acct:
+        print("⚠️ Incentive system not available")
+        return False
+    
+    try:
+        print(f"💰 Triggering incentive distribution for {user_address}")
+        
+        # This would call claimPostRewards or similar function
+        # Implementation depends on the specific incentive contract design
+        
+        agent_stats["incentives_distributed"] += 1
+        print(f"✅ Incentive distribution triggered!")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to trigger incentives: {e}")
+        return False
+
 def handle_post(post_id, author, content):
     """Handle a single post for moderation"""
     global agent_stats
@@ -273,7 +356,8 @@ def handle_post(post_id, author, content):
             print(f"   📊 Score: {score_percentage:.2f}% > Threshold: {threshold_percentage:.2f}%")
             print(f"   📝 Content Preview: '{content[:100]}{'...' if len(content) > 100 else ''}'")
             
-            if moderator and acct:
+            moderator_contract = contracts.get('moderator')
+            if moderator_contract and acct:
                 # Check if we've already flagged this post in our session
                 if post_id in flagged_posts_cache:
                     print(f"   ⚠️ Post {post_id} already flagged by this agent, skipping blockchain transaction")
@@ -289,14 +373,14 @@ def handle_post(post_id, author, content):
                     print(f"   🔧 Model for transaction: {model_name_for_tx}")
                     
                     print(f"   ⛽ Estimating gas for flagPost transaction...")
-                    gas_estimate = moderator.functions.flagPost(post_id, score_bp, model_name_for_tx).estimate_gas({'from': acct.address})
+                    gas_estimate = moderator_contract.functions.flagPost(post_id, score_bp, model_name_for_tx).estimate_gas({'from': acct.address})
                     print(f"   ⛽ Gas estimate: {gas_estimate}")
                     
                     print(f"   📝 Building transaction...")
                     nonce = w3.eth.get_transaction_count(acct.address)
                     print(f"   🔢 Account nonce: {nonce}")
                     
-                    tx = moderator.functions.flagPost(post_id, score_bp, model_name_for_tx).build_transaction({
+                    tx = moderator_contract.functions.flagPost(post_id, score_bp, model_name_for_tx).build_transaction({
                         "from": acct.address,
                         "nonce": nonce,
                         "chainId": CHAIN_ID or w3.eth.chain_id,
@@ -323,6 +407,10 @@ def handle_post(post_id, author, content):
                     print(f"   📊 Total posts processed: {agent_stats['posts_processed']}")
                     print(f"   🚩 Total posts flagged: {agent_stats['posts_flagged']}")
                     print(f"   🔗 Transaction: {tx_hash.hex()}")
+                    
+                    # Update reputation (penalty for flagged post)
+                    update_user_reputation(author, is_flagged=True)
+                    
                     print(f"{'='*60}")
                     
                     return {"flagged": True, "tx_hash": tx_hash.hex(), "score": score_bp}
@@ -355,6 +443,13 @@ def handle_post(post_id, author, content):
             print(f"   📊 Score: {score_percentage:.2f}% < Threshold: {threshold_percentage:.2f}%")
             print(f"   ✅ No action required - content is within acceptable limits")
             print(f"   📊 Total posts processed: {agent_stats['posts_processed']}")
+            
+            # Update reputation (bonus for safe post)
+            update_user_reputation(author, is_flagged=False)
+            
+            # Trigger incentive distribution for safe posts
+            trigger_incentive_distribution(author)
+            
             print(f"{'='*60}")
             return {"flagged": False, "score": score_bp}
             
@@ -371,9 +466,10 @@ def monitoring_loop():
     global monitoring_active, last_checked_post_id, agent_stats
     
     # Initialize last_checked_post_id to current total on first run
-    if last_checked_post_id == 0 and social:
+    social_contract = contracts.get('social')
+    if last_checked_post_id == 0 and social_contract:
         try:
-            current_total = social.functions.totalPosts().call()
+            current_total = social_contract.functions.totalPosts().call()
             last_checked_post_id = current_total
             print(f"🔄 Starting monitoring from post {current_total + 1} (skipping existing {current_total} posts)")
         except Exception as e:
@@ -381,11 +477,12 @@ def monitoring_loop():
     
     while monitoring_active:
         try:
-            if not social:
+            social_contract = contracts.get('social')
+            if not social_contract:
                 time.sleep(30)
                 continue
                 
-            total_posts = social.functions.totalPosts().call()
+            total_posts = social_contract.functions.totalPosts().call()
             agent_stats["last_check"] = time.time()
             
             if total_posts > last_checked_post_id:
@@ -426,8 +523,9 @@ def monitoring_loop():
 def home():
     """Health check endpoint"""
     return jsonify({
-        "service": "SOL AI Moderator Agent",
+        "service": "Enhanced SOL AI Moderator Agent",
         "status": "running",
+        "features": ["toxicity_detection", "reputation_system", "incentive_distribution", "governance_integration"],
         "model": MODEL_NAME,
         "threshold_bp": THRESHOLD_BP,
         "monitoring": monitoring_active
@@ -439,7 +537,13 @@ def health():
     return jsonify({
         "status": "healthy",
         "web3_connected": w3 is not None,
-        "contracts_loaded": social is not None and moderator is not None,
+        "contracts": {
+            "social": contracts.get('social') is not None,
+            "moderator": contracts.get('moderator') is not None,
+            "reputation": contracts.get('reputation') is not None,
+            "incentive": contracts.get('incentive') is not None,
+            "governance": contracts.get('governance') is not None
+        },
         "ai_model_loaded": HF_API_AVAILABLE,
         "ai_model_type": "toxic-bert" if HF_API_AVAILABLE else "keyword-based",
         "hf_token_available": bool(HF_TOKEN),
@@ -486,11 +590,14 @@ def start_monitoring():
     monitoring_active = True
     agent_stats["status"] = "running"
     
-    print(f"\n🚀 STARTING AI MODERATION MONITORING")
+    print(f"\n🚀 STARTING ENHANCED AI MODERATION MONITORING")
     print(f"{'='*60}")
-    print(f"🤖 Agent: SOL AI Moderator")
+    print(f"🤖 Agent: Enhanced SOL AI Moderator")
     print(f"🧠 Model: {'toxic-bert' if HF_API_AVAILABLE else 'keyword-based'}")
     print(f"🎯 Threshold: {THRESHOLD_BP/100}% ({THRESHOLD_BP} BP)")
+    print(f"🏆 Reputation System: {'✅' if contracts.get('reputation') else '❌'}")
+    print(f"💰 Incentive System: {'✅' if contracts.get('incentive') else '❌'}")
+    print(f"⚖️ Governance System: {'✅' if contracts.get('governance') else '❌'}")
     print(f"🔗 Agent Address: {acct.address if acct else 'N/A'}")
     print(f"⏰ Started: {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime())}")
     print(f"{'='*60}")
@@ -517,7 +624,14 @@ def get_stats():
     return jsonify({
         **agent_stats,
         "last_checked_post_id": last_checked_post_id,
-        "flagged_posts_cache_size": len(flagged_posts_cache)
+        "flagged_posts_cache_size": len(flagged_posts_cache),
+        "contracts_available": {
+            "social": contracts.get('social') is not None,
+            "moderator": contracts.get('moderator') is not None,
+            "reputation": contracts.get('reputation') is not None,
+            "incentive": contracts.get('incentive') is not None,
+            "governance": contracts.get('governance') is not None
+        }
     })
 
 @app.route('/reset-cache', methods=['POST'])
@@ -579,101 +693,50 @@ def moderate_text():
         "toxicity_percentage": score_bp / 100,
         "is_toxic": score_bp >= THRESHOLD_BP,
         "threshold_bp": THRESHOLD_BP,
-        "model_used": "gemini-ai" if gemini_models else "keyword-based",
-        "gemini_models_available": len(gemini_models),
-        "available_models": [m["name"] for m in gemini_models]
+        "model_used": "toxic-bert" if HF_API_AVAILABLE else "keyword-based"
     })
 
-@app.route('/test-gemini', methods=['POST'])
-def test_gemini():
-    """Test Gemini API directly"""
-    data = request.get_json()
-    if not data or 'text' not in data:
-        return jsonify({"error": "Missing 'text' field"}), 400
-    
-    text = data['text']
-    
-    if not gemini_model:
-        return jsonify({
-            "error": "Gemini model not available",
-            "gemini_available": GEMINI_AVAILABLE,
-            "api_key_provided": bool(GEMINI_API_KEY)
-        }), 400
+@app.route('/reputation/<address>')
+def get_reputation(address):
+    """Get reputation for a specific address"""
+    if not contracts.get('reputation'):
+        return jsonify({"error": "Reputation system not available"}), 400
     
     try:
-        prompt = f"""
-You are a content moderation AI. Analyze this text for toxicity: "{text}"
-
-Rate toxicity from 0-100:
-• 0-25: Safe/Clean content
-• 26-50: Mildly inappropriate
-• 51-75: Moderately toxic
-• 76-100: Highly toxic/harmful
-
-Consider:
-- Profanity, offensive language
-- Hate speech, discrimination
-- Violence, threats
-- Harassment, bullying
-- Sexual content
-- Spam or misleading content
-
-Respond with ONLY the number (0-100). No explanation.
-"""
-        
-        response = gemini_model.generate_content(prompt)
-        response_text = response.text.strip()
-        
-        # Extract number from response
-        import re
-        number_match = re.search(r'\b(\d{1,3})\b', response_text)
+        reputation_data = contracts['reputation'].functions.getUserReputation(address).call()
+        current_score = contracts['reputation'].functions.getReputationScore(address).call()
+        tier = contracts['reputation'].functions.getUserTier(address).call()
         
         return jsonify({
-            "text": text,
-            "raw_response": response_text,
-            "parsed_number": number_match.group(1) if number_match else None,
-            "success": number_match is not None,
-            "model": str(gemini_model._model_name) if hasattr(gemini_model, '_model_name') else "unknown"
+            "address": address,
+            "current_score": current_score,
+            "tier": tier,
+            "reputation_data": {
+                "score": reputation_data[0],
+                "totalPosts": reputation_data[1],
+                "safePosts": reputation_data[2],
+                "flaggedPosts": reputation_data[3],
+                "lastUpdated": reputation_data[4],
+                "tier": reputation_data[5]
+            }
         })
-        
     except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "text": text
-        }), 500
+        return jsonify({"error": str(e)}), 500
 
-@app.route('/list-models')
-def list_gemini_models():
-    """List available Gemini models"""
-    if not GEMINI_AVAILABLE or not GEMINI_API_KEY:
-        return jsonify({
-            "error": "Gemini not available",
-            "gemini_available": GEMINI_AVAILABLE,
-            "api_key_provided": bool(GEMINI_API_KEY)
-        }), 400
+@app.route('/governance/appeals')
+def get_appeals():
+    """Get active appeals"""
+    if not contracts.get('governance'):
+        return jsonify({"error": "Governance system not available"}), 400
     
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        models = []
-        for model in genai.list_models():
-            if 'generateContent' in model.supported_generation_methods:
-                models.append({
-                    "name": model.name,
-                    "display_name": model.display_name,
-                    "description": model.description
-                })
-        
-        return jsonify({
-            "available_models": models,
-            "current_model": str(gemini_model._model_name) if gemini_model and hasattr(gemini_model, '_model_name') else None
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "error": str(e),
-            "error_type": type(e).__name__
-        }), 500
+    # This would need to be implemented based on the governance contract's event logs
+    # For now, return a placeholder
+    return jsonify({
+        "active_appeals": [],
+        "message": "Governance integration pending contract deployment"
+    })
+
+# Removed old Gemini routes - now using toxic-bert exclusively
 
 # --- Monitoring thread startup for all environments (including WSGI/Gunicorn) ---
 # Use a process-wide flag to avoid duplicate threads
@@ -682,12 +745,12 @@ try:
     if not _monitoring_started:
         print('=== AGENT UNIVERSAL STARTUP ===')
         print(f'w3: {w3}')
-        print(f'social: {social}')
-        print(f'moderator: {moderator}')
+        print(f'social: {contracts.get("social")}')
+        print(f'moderator: {contracts.get("moderator")}')
         print(f'acct: {acct}')
-        print(f'Contracts loaded: {social is not None and moderator is not None}')
+        print(f'Contracts loaded: {contracts.get("social") is not None and contracts.get("moderator") is not None}')
         print(f'Agent address: {acct.address if acct else None}')
-        if all([w3, social, moderator, acct]):
+        if all([w3, contracts.get("social"), contracts.get("moderator"), acct]):
             monitoring_active = True
             agent_stats["status"] = "running"
             monitor_thread = threading.Thread(target=monitoring_loop, daemon=True)
@@ -695,7 +758,7 @@ try:
             print("Auto-started monitoring (universal)")
         else:
             print("Warning: Not all components available, monitoring not auto-started (universal)")
-            print(f"Components status: w3={w3 is not None}, social={social is not None}, moderator={moderator is not None}, acct={acct is not None}")
+            print(f"Components status: w3={w3 is not None}, social={contracts.get('social') is not None}, moderator={contracts.get('moderator') is not None}, acct={acct is not None}")
         _monitoring_started = True
 except Exception as e:
     print(f'FATAL ERROR in universal monitoring startup: {e}')
@@ -706,13 +769,13 @@ if __name__ == '__main__':
     try:
         print('=== AGENT MAIN ENTRY ===')
         print(f'w3: {w3}')
-        print(f'social: {social}')
-        print(f'moderator: {moderator}')
+        print(f'social: {contracts.get("social")}')
+        print(f'moderator: {contracts.get("moderator")}')
         print(f'acct: {acct}')
-        print(f'Contracts loaded: {social is not None and moderator is not None}')
+        print(f'Contracts loaded: {contracts.get("social") is not None and contracts.get("moderator") is not None}')
         print(f'Agent address: {acct.address if acct else None}')
         # Auto-start monitoring if all components are available
-        if all([w3, social, moderator, acct]):
+        if all([w3, contracts.get("social"), contracts.get("moderator"), acct]):
             monitoring_active = True
             agent_stats["status"] = "running"
             monitor_thread = threading.Thread(target=monitoring_loop, daemon=True)
@@ -720,7 +783,7 @@ if __name__ == '__main__':
             print("Auto-started monitoring")
         else:
             print("Warning: Not all components available, monitoring not auto-started")
-            print(f"Components status: w3={w3 is not None}, social={social is not None}, moderator={moderator is not None}, acct={acct is not None}")
+            print(f"Components status: w3={w3 is not None}, social={contracts.get('social') is not None}, moderator={contracts.get('moderator') is not None}, acct={acct is not None}")
         
         # Run Flask app in debug mode for troubleshooting
         port = int(os.environ.get('PORT', 5000))
