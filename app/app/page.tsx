@@ -4,10 +4,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BrowserProvider, Contract, JsonRpcProvider, JsonRpcSigner, WebSocketProvider } from "ethers";
 import SocialAbi from "../contracts/abis/SocialPosts.json";
 import ModeratorAbi from "../contracts/abis/Moderator.json";
+import ReputationAbi from "../contracts/abis/ReputationSystem.json";
+import ReputationSBTAbi from "../contracts/abis/ReputationSBT.json";
+import IncentiveAbi from "../contracts/abis/IncentiveSystem.json";
+import GovernanceAbi from "../contracts/abis/GovernanceSystem.json";
+import ReputationDashboard from "../components/ReputationDashboard";
+import GovernancePanel from "../components/GovernancePanel";
+import { createFeedRanking, getFeedVariants } from "../utils/feedRanking";
 import "./globals.css";
 
 const SOCIAL_ADDR = process.env.NEXT_PUBLIC_SOCIAL_POSTS_ADDRESS as string;
 const MODERATOR_ADDR = process.env.NEXT_PUBLIC_MODERATOR_ADDRESS as string;
+const REPUTATION_ADDR = process.env.NEXT_PUBLIC_REPUTATION_SYSTEM_ADDRESS as string;
+const REPUTATION_SBT_ADDR = process.env.NEXT_PUBLIC_REPUTATION_SBT_ADDRESS as string;
+const SOL_TOKEN_ADDR = process.env.NEXT_PUBLIC_SOL_TOKEN_ADDRESS as string;
+const INCENTIVE_ADDR = process.env.NEXT_PUBLIC_INCENTIVE_SYSTEM_ADDRESS as string;
+const GOVERNANCE_ADDR = process.env.NEXT_PUBLIC_GOVERNANCE_SYSTEM_ADDRESS as string;
 const SOMNIA_RPC = process.env.NEXT_PUBLIC_SOMNIA_RPC_URL as string;
 const SOMNIA_WSS = process.env.NEXT_PUBLIC_SOMNIA_WSS_URL as string;
 
@@ -27,6 +39,12 @@ export default function Home() {
   const [showProfile, setShowProfile] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<{name: string; bio: string; avatar: string}>({name: "", bio: "", avatar: ""});
   const [editingProfile, setEditingProfile] = useState<boolean>(false);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [showReputationDashboard, setShowReputationDashboard] = useState<boolean>(false);
+  const [showGovernance, setShowGovernance] = useState<boolean>(false);
+  const [feedVariant, setFeedVariant] = useState<string>('ranked');
+  const [rankedPosts, setRankedPosts] = useState<Array<any>>([]);
+  const [contracts, setContracts] = useState<any>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
   const getDisplayName = (address: string) => {
@@ -117,7 +135,20 @@ export default function Home() {
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       setAccount(address);
-      setSocialWrite(new Contract(SOCIAL_ADDR, SocialAbi, signer as unknown as JsonRpcSigner));
+      const socialWriteContract = new Contract(SOCIAL_ADDR, SocialAbi, signer as unknown as JsonRpcSigner);
+      setSocialWrite(socialWriteContract);
+      
+      // Set up contracts object for new components
+      setContracts({
+        socialPosts: socialWriteContract,
+        moderator: new Contract(MODERATOR_ADDR, ModeratorAbi, signer as unknown as JsonRpcSigner),
+        reputationSystem: new Contract(REPUTATION_ADDR, ReputationAbi.abi, signer as unknown as JsonRpcSigner),
+        reputationSBT: new Contract(REPUTATION_SBT_ADDR, ReputationSBTAbi.abi, signer as unknown as JsonRpcSigner),
+        solToken: new Contract(SOL_TOKEN_ADDR, IncentiveAbi.abi, signer as unknown as JsonRpcSigner), // SOLToken is in IncentiveSystem.json
+        incentiveSystem: new Contract(INCENTIVE_ADDR, IncentiveAbi.abi, signer as unknown as JsonRpcSigner),
+        governanceSystem: new Contract(GOVERNANCE_ADDR, GovernanceAbi.abi, signer as unknown as JsonRpcSigner)
+      });
+      
       loadProfile(address);
       setStatus("Wallet connected");
     } catch (e: any) {
@@ -136,6 +167,21 @@ export default function Home() {
       }
       setPosts(arr.reverse());
       setFlaggedPosts(arr.filter(p => p.flagged));
+      
+      // Apply feed ranking
+      if (contracts) {
+        try {
+          const feedRanking = createFeedRanking(contracts);
+          const ranked = await feedRanking.rankPosts(arr);
+          setRankedPosts(ranked);
+        } catch (error) {
+          console.error('Error ranking posts:', error);
+          setRankedPosts(arr);
+        }
+      } else {
+        setRankedPosts(arr);
+      }
+      
       setStatus(`Loaded ${total} posts`);
     } catch (e: any) {
       setStatus(`RPC Error: ${e.message || String(e)}`);
@@ -213,23 +259,27 @@ export default function Home() {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [logs]);
 
-  // Filter posts based on active filter and search query
+  // Filter posts based on active filter, search query, and feed variant
   const filteredPosts = useMemo(() => {
-    let filtered = posts;
+    let filtered = feedVariant === 'ranked' ? rankedPosts : posts;
     
     // Apply filter
     switch (activeFilter) {
       case "safe":
-        filtered = posts.filter(p => !p.flagged);
+        filtered = filtered.filter(p => !p.flagged);
         break;
       case "my":
-        filtered = posts.filter(p => p.author.toLowerCase() === account.toLowerCase());
+        filtered = filtered.filter(p => p.author.toLowerCase() === account.toLowerCase());
         break;
       case "recent":
-        filtered = posts.slice(0, 10);
+        filtered = filtered.slice(0, 10);
+        break;
+      case "trending":
+        // This would use the trending algorithm from feedRanking
+        filtered = filtered.filter(p => !p.flagged).slice(0, 20);
         break;
       default:
-        filtered = posts.filter(p => !p.flagged); // Show only safe posts by default
+        filtered = filtered.filter(p => !p.flagged); // Show only safe posts by default
     }
     
     // Apply search
@@ -241,7 +291,7 @@ export default function Home() {
     }
     
     return filtered;
-  }, [posts, activeFilter, searchQuery, account]);
+  }, [posts, rankedPosts, activeFilter, searchQuery, account, feedVariant]);
 
   // Generate avatar initials from address
   const getAvatarInitials = (address: string) => {
@@ -257,8 +307,11 @@ export default function Home() {
         </div>
       )}
 
+      {/* Mobile Overlay */}
+      {sidebarOpen && <div className="mobile-overlay" onClick={() => setSidebarOpen(false)}></div>}
+      
       {/* Sidebar Navigation */}
-      <nav className="sidebar">
+      <nav className={`sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-header">
           <div className="logo">
             <h1 className="logo-text">SOL AI</h1>
@@ -269,13 +322,16 @@ export default function Home() {
         <div className="nav-section">
           <h3 className="nav-section-title">Main</h3>
           <div className="nav-items">
-            <button className={`nav-item ${activeFilter === 'all' ? 'active' : ''}`} onClick={() => setActiveFilter('all')}>
+            <button className={`nav-item ${activeFilter === 'all' ? 'active' : ''}`} onClick={() => {setActiveFilter('all'); setSidebarOpen(false);}}>
               <span className="nav-label">Feed</span>
             </button>
-            <button className={`nav-item ${showProfile ? 'active' : ''}`} onClick={() => setShowProfile(true)}>
+            <button className={`nav-item ${showProfile ? 'active' : ''}`} onClick={() => {setShowProfile(true); setSidebarOpen(false);}}>
               <span className="nav-label">Profile</span>
             </button>
-            <button className="nav-item" onClick={() => setShowEventLog(true)}>
+            <button className={`nav-item ${showReputationDashboard ? 'active' : ''}`} onClick={() => {setShowReputationDashboard(true); setSidebarOpen(false);}}>
+              <span className="nav-label">Reputation</span>
+            </button>
+            <button className="nav-item" onClick={() => {setShowEventLog(true); setSidebarOpen(false);}}>
               <span className="nav-label">Analytics</span>
             </button>
           </div>
@@ -284,11 +340,20 @@ export default function Home() {
         <div className="nav-section">
           <h3 className="nav-section-title">AI Moderation</h3>
           <div className="nav-items">
-            <button className="nav-item" onClick={() => setShowFlaggedPosts(true)}>
+            <button className="nav-item" onClick={() => {setShowFlaggedPosts(true); setSidebarOpen(false);}}>
               <span className="nav-label">Moderation</span>
               {flaggedPosts.length > 0 && (
                 <span className="nav-badge">{flaggedPosts.length}</span>
               )}
+            </button>
+          </div>
+        </div>
+
+        <div className="nav-section">
+          <h3 className="nav-section-title">Governance</h3>
+          <div className="nav-items">
+            <button className={`nav-item ${showGovernance ? 'active' : ''}`} onClick={() => {setShowGovernance(true); setSidebarOpen(false);}}>
+              <span className="nav-label">Appeals</span>
             </button>
           </div>
         </div>
@@ -313,6 +378,13 @@ export default function Home() {
       <main className="main-content">
         {/* Top Header */}
         <header className="top-header">
+          <button 
+            className="mobile-menu-btn"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            ☰
+          </button>
+          
           <div className="search-container">
             <input
               type="text"
@@ -373,10 +445,23 @@ export default function Home() {
           <div className="feed-container">
             {/* Feed Header */}
             <div className="feed-header">
-              <div className="feed-tabs">
-                <button className={`feed-tab ${activeFilter === 'all' ? 'active' : ''}`} onClick={() => setActiveFilter('all')}>All Posts</button>
-                <button className={`feed-tab ${activeFilter === 'safe' ? 'active' : ''}`} onClick={() => setActiveFilter('safe')}>Safe Only</button>
-                <button className={`feed-tab ${activeFilter === 'recent' ? 'active' : ''}`} onClick={() => setActiveFilter('recent')}>Recent</button>
+              <div className="feed-controls">
+                <div className="feed-tabs">
+                  <button className={`feed-tab ${activeFilter === 'all' ? 'active' : ''}`} onClick={() => setActiveFilter('all')}>All Posts</button>
+                  <button className={`feed-tab ${activeFilter === 'safe' ? 'active' : ''}`} onClick={() => setActiveFilter('safe')}>Safe Only</button>
+                  <button className={`feed-tab ${activeFilter === 'recent' ? 'active' : ''}`} onClick={() => setActiveFilter('recent')}>Recent</button>
+                  <button className={`feed-tab ${activeFilter === 'trending' ? 'active' : ''}`} onClick={() => setActiveFilter('trending')}>Trending</button>
+                </div>
+                <div className="feed-variant-selector">
+                  <select 
+                    value={feedVariant} 
+                    onChange={(e) => setFeedVariant(e.target.value)}
+                    className="variant-select"
+                  >
+                    <option value="chronological">Chronological</option>
+                    <option value="ranked">Algorithm</option>
+                  </select>
+                </div>
               </div>
               <button onClick={loadPosts} className="refresh-btn" title="Refresh Feed">
                 ↻
@@ -398,8 +483,15 @@ export default function Home() {
                       </div>
                       <div className="post-time">Just now</div>
                     </div>
-                    <div className={`moderation-badge ${post.flagged ? 'flagged' : 'safe'}`}>
-                      {post.flagged ? 'Flagged' : 'Safe'}
+                    <div className="post-badges">
+                      <div className={`moderation-badge ${post.flagged ? 'flagged' : 'safe'}`}>
+                        {post.flagged ? 'Flagged' : 'Safe'}
+                      </div>
+                      {post.rankingScore && (
+                        <div className="ranking-badge" title={`Ranking Score: ${post.rankingScore.toFixed(2)}`}>
+                          ⭐ {post.rankingScore.toFixed(1)}
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -739,6 +831,64 @@ export default function Home() {
               >
                 Export Log
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reputation Dashboard Modal */}
+      {showReputationDashboard && (
+        <div className="modal-overlay" onClick={() => setShowReputationDashboard(false)}>
+          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">🏆 Reputation Dashboard</h3>
+              <button
+                onClick={() => setShowReputationDashboard(false)}
+                className="close-btn"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {contracts ? (
+                <ReputationDashboard contracts={contracts} account={account} />
+              ) : (
+                <div className="connect-prompt">
+                  <p>Connect your wallet to view reputation dashboard</p>
+                  <button onClick={connectWallet} className="connect-btn">
+                    Connect Wallet
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Governance Panel Modal */}
+      {showGovernance && (
+        <div className="modal-overlay" onClick={() => setShowGovernance(false)}>
+          <div className="modal-content large-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">⚖️ Community Governance</h3>
+              <button
+                onClick={() => setShowGovernance(false)}
+                className="close-btn"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              {contracts ? (
+                <GovernancePanel contracts={contracts} account={account} />
+              ) : (
+                <div className="connect-prompt">
+                  <p>Connect your wallet to participate in governance</p>
+                  <button onClick={connectWallet} className="connect-btn">
+                    Connect Wallet
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
