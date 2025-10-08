@@ -10,7 +10,9 @@ import IncentiveAbi from "../contracts/abis/IncentiveSystem.json";
 import GovernanceAbi from "../contracts/abis/GovernanceSystem.json";
 import ReputationDashboard from "../components/ReputationDashboard";
 import GovernancePanel from "../components/GovernancePanel";
-import { createFeedRanking, getFeedVariants } from "../utils/feedRanking";
+import { AgentAPI } from '../utils/agentApi';
+import { createFeedRanking } from '../utils/feedRanking';
+import DiagnosticPanel from '../components/DiagnosticPanel';
 import "./globals.css";
 
 const SOCIAL_ADDR = process.env.NEXT_PUBLIC_SOCIAL_POSTS_ADDRESS as string;
@@ -930,6 +932,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Temporary diagnostic panel for debugging Vercel deployment */}
+      <DiagnosticPanel />
     </div>
   );
 }
