@@ -12,6 +12,7 @@ import ReputationDashboard from "../components/ReputationDashboard";
 import GovernancePanel from "../components/GovernancePanel";
 import { AgentAPI } from '../utils/agentApi';
 import { createFeedRanking } from '../utils/feedRanking';
+import { DirectRpcProvider, DirectContract } from '../utils/directRpc';
 import "./globals.css";
 
 const SOCIAL_ADDR = process.env.NEXT_PUBLIC_SOCIAL_POSTS_ADDRESS as string;
@@ -183,17 +184,15 @@ export default function Home() {
 
   async function loadPosts() {
     try {
-      console.log("🔄 Starting to load posts...");
+      console.log("🔄 Starting to load posts with direct RPC...");
       setStatus("Loading posts...");
       
-      if (!socialRead) {
-        console.error("❌ socialRead contract not initialized");
-        setStatus("Contract not initialized");
-        return;
-      }
+      // Use direct RPC to completely bypass ethers.js ENS issues
+      const directProvider = new DirectRpcProvider(SOMNIA_RPC);
+      const directContract = new DirectContract(SOCIAL_ADDR, directProvider);
       
-      console.log("📞 Calling totalPosts()...");
-      const total: bigint = await socialRead.totalPosts();
+      console.log("📞 Calling totalPosts() via direct RPC...");
+      const total: bigint = await directContract.totalPosts();
       console.log(`📊 Total posts: ${total}`);
       
       const arr: Array<{id: bigint; author: string; content: string; flagged: boolean}> = [];
@@ -203,7 +202,7 @@ export default function Home() {
         for (let i = 1n; i <= total; i++) {
           try {
             console.log(`📖 Loading post ${i}...`);
-            const p = await socialRead.getPost(i);
+            const p = await directContract.getPost(i);
             console.log(`✅ Post ${i}:`, { id: p.id, author: p.author, content: p.content.substring(0, 50), flagged: p.flagged });
             arr.push({ id: p.id, author: p.author, content: p.content, flagged: p.flagged });
           } catch (postError) {
@@ -224,7 +223,7 @@ export default function Home() {
       } else {
         setStatus(`Loaded ${total} posts`);
       }
-      console.log("✅ Posts loaded successfully");
+      console.log("✅ Posts loaded successfully via direct RPC");
     } catch (e: any) {
       const errorMsg = `RPC Error: ${e.message || String(e)}`;
       setStatus(errorMsg);
