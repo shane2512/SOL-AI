@@ -44,7 +44,14 @@ const DiagnosticPanel = () => {
 
         // Test contract
         try {
-          const contract = new Contract(results.envVars.SOCIAL_ADDR, SocialAbi.abi, provider);
+          results.abiInfo = {
+            type: typeof SocialAbi,
+            isArray: Array.isArray(SocialAbi),
+            length: SocialAbi.length || 'undefined',
+            firstItem: SocialAbi[0] || 'undefined'
+          };
+          
+          const contract = new Contract(results.envVars.SOCIAL_ADDR, SocialAbi, provider);
           results.contractCreated = "✅ Contract instance created";
 
           // Test contract call
@@ -154,6 +161,11 @@ const DiagnosticPanel = () => {
           <div>{diagnostics.contractCreated || 'Not tested'}</div>
           <div>{diagnostics.contractCall || 'Not tested'}</div>
           {diagnostics.totalPosts && <div>Total Posts: {diagnostics.totalPosts}</div>}
+          {diagnostics.abiInfo && (
+            <div style={{ fontSize: '10px', marginTop: '5px' }}>
+              ABI: {diagnostics.abiInfo.type}, Array: {diagnostics.abiInfo.isArray.toString()}, Length: {diagnostics.abiInfo.length}
+            </div>
+          )}
         </div>
 
         {diagnostics.firstPost && (
