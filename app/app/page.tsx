@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BrowserProvider, Contract, JsonRpcProvider, JsonRpcSigner, WebSocketProvider, Network } from "ethers";
+import { ethers } from "ethers";
 import SocialAbi from "../contracts/abis/SocialPosts.json";
 import ModeratorAbi from "../contracts/abis/Moderator.json";
 import ReputationAbi from "../contracts/abis/ReputationSystem.json";
@@ -119,29 +119,27 @@ export default function Home() {
 
   const rpcProvider = useMemo(() => {
     console.log("🌐 Creating RPC provider:", SOMNIA_RPC);
-    // Create a static network object to prevent any network detection
-    const network = new Network("somnia", 50312);
-    return new JsonRpcProvider(SOMNIA_RPC, network, { staticNetwork: network });
+    // Ethers v5 syntax - much simpler and better for custom networks
+    return new ethers.providers.JsonRpcProvider(SOMNIA_RPC);
   }, []);
   
   const wssProvider = useMemo(() => {
     console.log("🔌 Creating WSS provider:", SOMNIA_WSS);
-    // Use static network for WebSocket provider too
-    const network = new Network("somnia", 50312);
-    return new WebSocketProvider(SOMNIA_WSS, network, { staticNetwork: network });
+    // Ethers v5 WebSocket provider
+    return new ethers.providers.WebSocketProvider(SOMNIA_WSS);
   }, []);
 
   const socialRead = useMemo(() => {
     console.log("📄 Creating socialRead contract:", SOCIAL_ADDR);
-    return new Contract(SOCIAL_ADDR, SocialAbi, rpcProvider);
+    return new ethers.Contract(SOCIAL_ADDR, SocialAbi, rpcProvider);
   }, [rpcProvider]);
   
   const moderatorRead = useMemo(() => {
     console.log("🛡️ Creating moderatorRead contract:", MODERATOR_ADDR);
-    return new Contract(MODERATOR_ADDR, ModeratorAbi, rpcProvider);
+    return new ethers.Contract(MODERATOR_ADDR, ModeratorAbi, rpcProvider);
   }, [rpcProvider]);
 
-  const [socialWrite, setSocialWrite] = useState<Contract | null>(null);
+  const [socialWrite, setSocialWrite] = useState<ethers.Contract | null>(null);
 
   function pushLog(s: string) {
     const timestamp = new Date().toLocaleTimeString();
@@ -157,23 +155,23 @@ export default function Home() {
         alert("MetaMask not found");
         return;
       }
-      const provider = new BrowserProvider(anyWindow.ethereum);
+      const provider = new ethers.providers.Web3Provider(anyWindow.ethereum);
       await provider.send("eth_requestAccounts", []);
-      const signer = await provider.getSigner();
+      const signer = provider.getSigner();
       const address = await signer.getAddress();
       setAccount(address);
-      const socialWriteContract = new Contract(SOCIAL_ADDR, SocialAbi, signer as unknown as JsonRpcSigner);
+      const socialWriteContract = new ethers.Contract(SOCIAL_ADDR, SocialAbi, signer);
       setSocialWrite(socialWriteContract);
       
       // Set up contracts object for new components
       setContracts({
         socialPosts: socialWriteContract,
-        moderator: new Contract(MODERATOR_ADDR, ModeratorAbi, signer as unknown as JsonRpcSigner),
-        reputationSystem: new Contract(REPUTATION_ADDR, ReputationAbi.abi, signer as unknown as JsonRpcSigner),
-        reputationSBT: new Contract(REPUTATION_SBT_ADDR, ReputationSBTAbi.abi, signer as unknown as JsonRpcSigner),
-        solToken: new Contract(SOL_TOKEN_ADDR, IncentiveAbi.abi, signer as unknown as JsonRpcSigner), // SOLToken is in IncentiveSystem.json
-        incentiveSystem: new Contract(INCENTIVE_ADDR, IncentiveAbi.abi, signer as unknown as JsonRpcSigner),
-        governanceSystem: new Contract(GOVERNANCE_ADDR, GovernanceAbi.abi, signer as unknown as JsonRpcSigner)
+        moderator: new ethers.Contract(MODERATOR_ADDR, ModeratorAbi, signer),
+        reputationSystem: new ethers.Contract(REPUTATION_ADDR, ReputationAbi.abi, signer),
+        reputationSBT: new ethers.Contract(REPUTATION_SBT_ADDR, ReputationSBTAbi.abi, signer),
+        solToken: new ethers.Contract(SOL_TOKEN_ADDR, IncentiveAbi.abi, signer),
+        incentiveSystem: new ethers.Contract(INCENTIVE_ADDR, IncentiveAbi.abi, signer),
+        governanceSystem: new ethers.Contract(GOVERNANCE_ADDR, GovernanceAbi.abi, signer)
       });
       
       loadProfile(address);
