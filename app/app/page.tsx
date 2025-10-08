@@ -207,13 +207,17 @@ export default function Home() {
       if (total > 0n) {
         console.log(`🔄 Loading ${total} posts...`);
         for (let i = 1n; i <= total; i++) {
-          console.log(`📖 Loading post ${i}...`);
-          const p = await socialRead.getPost(i);
-          console.log(`✅ Post ${i}:`, { id: p.id, author: p.author, content: p.content.substring(0, 50), flagged: p.flagged });
-          arr.push({ id: p.id, author: p.author, content: p.content, flagged: p.flagged });
+          try {
+            console.log(`📖 Loading post ${i}...`);
+            const p = await socialRead.getPost(i);
+            console.log(`✅ Post ${i}:`, { id: p.id, author: p.author, content: p.content.substring(0, 50), flagged: p.flagged });
+            arr.push({ id: p.id, author: p.author, content: p.content, flagged: p.flagged });
+          } catch (postError) {
+            console.error(`❌ Error loading post ${i}:`, postError);
+          }
         }
       } else {
-        console.log("ℹ️ No posts found");
+        console.log("ℹ️ No posts found - this is normal for a new deployment");
       }
       
       console.log(`📝 Setting ${arr.length} posts to state`);
@@ -221,7 +225,11 @@ export default function Home() {
       setFlaggedPosts(arr.filter(p => p.flagged));
       setRankedPosts(arr);
       
-      setStatus(`Loaded ${total} posts`);
+      if (total === 0n) {
+        setStatus("No posts yet - connect wallet and create the first post!");
+      } else {
+        setStatus(`Loaded ${total} posts`);
+      }
       console.log("✅ Posts loaded successfully");
     } catch (e: any) {
       const errorMsg = `RPC Error: ${e.message || String(e)}`;
