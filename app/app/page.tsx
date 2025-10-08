@@ -119,34 +119,14 @@ export default function Home() {
 
   const rpcProvider = useMemo(() => {
     console.log("🌐 Creating RPC provider:", SOMNIA_RPC);
-    // Try the most basic provider configuration possible
-    try {
-      const provider = new JsonRpcProvider(SOMNIA_RPC);
-      // Override network detection completely
-      (provider as any)._network = Promise.resolve({
-        name: "somnia",
-        chainId: 50312,
-        ensAddress: null
-      });
-      // Disable ENS resolution entirely
-      (provider as any).resolveName = (name: string) => {
-        if (name.startsWith('0x')) return Promise.resolve(name);
-        return Promise.reject(new Error('ENS not supported'));
-      };
-      return provider;
-    } catch (error) {
-      console.error("Provider creation error:", error);
-      throw error;
-    }
+    // Use the simplest possible provider configuration
+    return new JsonRpcProvider(SOMNIA_RPC, undefined, { staticNetwork: true });
   }, []);
   
   const wssProvider = useMemo(() => {
     console.log("🔌 Creating WSS provider:", SOMNIA_WSS);
-    // Create WebSocket provider with explicit network configuration
-    return new WebSocketProvider(SOMNIA_WSS, {
-      chainId: 50312,
-      name: "somnia-testnet"
-    });
+    // Use static network for WebSocket provider too
+    return new WebSocketProvider(SOMNIA_WSS, undefined, { staticNetwork: true });
   }, []);
 
   const socialRead = useMemo(() => {
