@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BrowserProvider, Contract, JsonRpcProvider, JsonRpcSigner, WebSocketProvider } from "ethers";
+import { BrowserProvider, Contract, JsonRpcProvider, JsonRpcSigner, WebSocketProvider, Network } from "ethers";
 import SocialAbi from "../contracts/abis/SocialPosts.json";
 import ModeratorAbi from "../contracts/abis/Moderator.json";
 import ReputationAbi from "../contracts/abis/ReputationSystem.json";
@@ -119,14 +119,16 @@ export default function Home() {
 
   const rpcProvider = useMemo(() => {
     console.log("🌐 Creating RPC provider:", SOMNIA_RPC);
-    // Use the simplest possible provider configuration
-    return new JsonRpcProvider(SOMNIA_RPC, undefined, { staticNetwork: true });
+    // Create a static network object to prevent any network detection
+    const network = new Network("somnia", 50312);
+    return new JsonRpcProvider(SOMNIA_RPC, network, { staticNetwork: network });
   }, []);
   
   const wssProvider = useMemo(() => {
     console.log("🔌 Creating WSS provider:", SOMNIA_WSS);
     // Use static network for WebSocket provider too
-    return new WebSocketProvider(SOMNIA_WSS, undefined, { staticNetwork: true });
+    const network = new Network("somnia", 50312);
+    return new WebSocketProvider(SOMNIA_WSS, network, { staticNetwork: network });
   }, []);
 
   const socialRead = useMemo(() => {
