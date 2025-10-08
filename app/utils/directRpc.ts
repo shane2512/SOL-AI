@@ -8,21 +8,32 @@ export class DirectRpcProvider {
   }
 
   private async call(method: string, params: any[] = []): Promise<any> {
+    const payload = {
+      jsonrpc: '2.0',
+      id: this.requestId++,
+      method,
+      params,
+    };
+    
+    console.log('🔵 RPC Request:', JSON.stringify(payload, null, 2));
+    
     const response = await fetch(this.rpcUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id: this.requestId++,
-        method,
-        params,
-      }),
+      body: JSON.stringify(payload),
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
     const data = await response.json();
+    console.log('🟢 RPC Response:', JSON.stringify(data, null, 2));
+    
     if (data.error) {
+      console.error('🔴 RPC Error:', data.error);
       throw new Error(data.error.message || 'RPC Error');
     }
     return data.result;
@@ -33,7 +44,15 @@ export class DirectRpcProvider {
   }
 
   async callContract(to: string, data: string): Promise<string> {
-    return await this.call('eth_call', [{ to, data }, 'latest']);
+    // Ensure addresses are checksummed and data is properly formatted
+    const params = [
+      {
+        to: to.toLowerCase(),
+        data: data.startsWith('0x') ? data : '0x' + data,
+      },
+      'latest'
+    ];
+    return await this.call('eth_call', params);
   }
 
   async sendTransaction(tx: any): Promise<string> {
