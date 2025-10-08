@@ -28,7 +28,11 @@ const DiagnosticPanel = () => {
 
       // Test RPC connection
       try {
-        const provider = new JsonRpcProvider(results.envVars.SOMNIA_RPC, 50312);
+        // Create provider with explicit network to avoid ENS
+        const provider = new JsonRpcProvider(results.envVars.SOMNIA_RPC, {
+          chainId: 50312,
+          name: "somnia-testnet"
+        });
         results.rpcConnection = "Attempting connection...";
         
         const network = await provider.getNetwork();
@@ -40,7 +44,7 @@ const DiagnosticPanel = () => {
 
         // Test contract
         try {
-          const contract = new Contract(results.envVars.SOCIAL_ADDR, SocialAbi, provider);
+          const contract = new Contract(results.envVars.SOCIAL_ADDR, SocialAbi.abi, provider);
           results.contractCreated = "✅ Contract instance created";
 
           // Test contract call

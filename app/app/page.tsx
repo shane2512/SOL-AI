@@ -120,14 +120,20 @@ export default function Home() {
 
   const rpcProvider = useMemo(() => {
     console.log("🌐 Creating RPC provider:", SOMNIA_RPC);
-    // Use chainId directly to avoid ENS resolution
-    return new JsonRpcProvider(SOMNIA_RPC, 50312);
+    // Create provider with explicit network configuration to prevent ENS
+    return new JsonRpcProvider(SOMNIA_RPC, {
+      chainId: 50312,
+      name: "somnia-testnet"
+    });
   }, []);
   
   const wssProvider = useMemo(() => {
     console.log("🔌 Creating WSS provider:", SOMNIA_WSS);
-    // Use chainId directly to avoid ENS resolution
-    return new WebSocketProvider(SOMNIA_WSS, 50312);
+    // Create WebSocket provider with explicit network configuration
+    return new WebSocketProvider(SOMNIA_WSS, {
+      chainId: 50312,
+      name: "somnia-testnet"
+    });
   }, []);
 
   const socialRead = useMemo(() => {
