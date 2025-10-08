@@ -168,19 +168,22 @@ export default function Home() {
       setPosts(arr.reverse());
       setFlaggedPosts(arr.filter(p => p.flagged));
       
-      // Apply feed ranking
-      if (contracts) {
-        try {
-          const feedRanking = createFeedRanking(contracts);
-          const ranked = await feedRanking.rankPosts(arr);
-          setRankedPosts(ranked);
-        } catch (error) {
-          console.error('Error ranking posts:', error);
-          setRankedPosts(arr);
-        }
-      } else {
-        setRankedPosts(arr);
-      }
+      // Apply feed ranking (temporarily disabled for debugging)
+      setRankedPosts(arr);
+      
+      // TODO: Re-enable feed ranking after fixing ENS issues
+      // if (contracts) {
+      //   try {
+      //     const feedRanking = createFeedRanking(contracts);
+      //     const ranked = await feedRanking.rankPosts(arr);
+      //     setRankedPosts(ranked);
+      //   } catch (error) {
+      //     console.error('Error ranking posts:', error);
+      //     setRankedPosts(arr);
+      //   }
+      // } else {
+      //   setRankedPosts(arr);
+      // }
       
       setStatus(`Loaded ${total} posts`);
     } catch (e: any) {
@@ -221,39 +224,28 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const social = new Contract(SOCIAL_ADDR, SocialAbi, wssProvider);
-    const onCreated = (id: bigint, author: string, content: string) => {
-      pushLog(`PostCreated id=${id} author=${author} content=${content}`);
-      loadPosts();
-    };
-    const onFlagged = (id: bigint, moderator: string) => {
-      pushLog(`PostFlagged id=${id} by=${moderator}`);
-      loadPosts();
-      
-      // Check if this is the current user's post
-      socialRead.getPost(id).then(post => {
-        if (post.author.toLowerCase() === account.toLowerCase()) {
-          setNotification("⚠️ Your post has been flagged by our AI moderation system for potentially toxic content.");
-          setTimeout(() => setNotification(""), 5000);
+    // Use polling instead of WebSocket subscriptions for Somnia compatibility
+    const pollForUpdates = async () => {
+      try {
+        const currentTotal = await socialRead.totalPosts();
+        const currentPostsLength = posts.length;
+        
+        if (Number(currentTotal) > currentPostsLength) {
+          pushLog(`New posts detected: ${currentTotal} total`);
+          loadPosts();
         }
-      }).catch(console.error);
+      } catch (error) {
+        console.error("Polling error:", error);
+      }
     };
 
-    social.on("PostCreated", onCreated);
-    social.on("PostFlagged", onFlagged);
-
-    const mod = new Contract(MODERATOR_ADDR, ModeratorAbi, wssProvider);
-    const onModFlag = (id: bigint, agent: string, scoreBp: bigint, model: string) => {
-      pushLog(`Moderator.PostFlagged id=${id} agent=${agent} scoreBp=${scoreBp} model=${model}`);
-    };
-    mod.on("PostFlagged", onModFlag);
-
+    // Poll every 10 seconds for new posts
+    const pollInterval = setInterval(pollForUpdates, 10000);
+    
     return () => {
-      social.removeAllListeners();
-      mod.removeAllListeners();
-      wssProvider.destroy();
+      clearInterval(pollInterval);
     };
-  }, [wssProvider]);
+  }, [posts.length]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;

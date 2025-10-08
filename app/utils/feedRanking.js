@@ -54,10 +54,14 @@ export class FeedRankingSystem {
   async getReputationScore(userAddress) {
     try {
       if (!this.contracts?.reputationSystem) return 0;
+      
+      // Ensure address is valid and not ENS
+      if (!userAddress || !userAddress.startsWith('0x')) return 0;
+      
       const score = await this.contracts.reputationSystem.getReputationScore(userAddress);
       return parseInt(score.toString());
     } catch (error) {
-      console.error('Error fetching reputation:', error);
+      console.error('Error fetching reputation for', userAddress, ':', error);
       return 0;
     }
   }
@@ -70,8 +74,15 @@ export class FeedRankingSystem {
   }
 
   calculateRecencyScore(timestamp) {
+    // If no timestamp, assume recent post
+    if (!timestamp) return 1;
+    
     const now = Date.now();
     const postTime = typeof timestamp === 'number' ? timestamp * 1000 : new Date(timestamp).getTime();
+    
+    // If invalid timestamp, assume recent
+    if (isNaN(postTime)) return 1;
+    
     const ageInHours = (now - postTime) / (1000 * 60 * 60);
     
     // Posts lose score over time with exponential decay
