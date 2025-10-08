@@ -23,6 +23,14 @@ const GOVERNANCE_ADDR = process.env.NEXT_PUBLIC_GOVERNANCE_SYSTEM_ADDRESS as str
 const SOMNIA_RPC = process.env.NEXT_PUBLIC_SOMNIA_RPC_URL as string;
 const SOMNIA_WSS = process.env.NEXT_PUBLIC_SOMNIA_WSS_URL as string;
 
+// Debug environment variables
+console.log("🔧 Environment Variables:", {
+  SOCIAL_ADDR,
+  MODERATOR_ADDR,
+  SOMNIA_RPC,
+  SOMNIA_WSS
+});
+
 export default function Home() {
   const [account, setAccount] = useState<string>("");
   const [status, setStatus] = useState<string>("");
@@ -108,11 +116,34 @@ export default function Home() {
     }
   };
 
-  const rpcProvider = useMemo(() => new JsonRpcProvider(SOMNIA_RPC), []);
-  const wssProvider = useMemo(() => new WebSocketProvider(SOMNIA_WSS), []);
+  const rpcProvider = useMemo(() => {
+    console.log("🌐 Creating RPC provider:", SOMNIA_RPC);
+    // Configure Somnia network explicitly
+    const network = {
+      name: "somnia",
+      chainId: 50312
+    };
+    return new JsonRpcProvider(SOMNIA_RPC, network);
+  }, []);
+  
+  const wssProvider = useMemo(() => {
+    console.log("🔌 Creating WSS provider:", SOMNIA_WSS);
+    const network = {
+      name: "somnia",
+      chainId: 50312
+    };
+    return new WebSocketProvider(SOMNIA_WSS, network);
+  }, []);
 
-  const socialRead = useMemo(() => new Contract(SOCIAL_ADDR, SocialAbi, rpcProvider), [rpcProvider]);
-  const moderatorRead = useMemo(() => new Contract(MODERATOR_ADDR, ModeratorAbi, rpcProvider), [rpcProvider]);
+  const socialRead = useMemo(() => {
+    console.log("📄 Creating socialRead contract:", SOCIAL_ADDR);
+    return new Contract(SOCIAL_ADDR, SocialAbi, rpcProvider);
+  }, [rpcProvider]);
+  
+  const moderatorRead = useMemo(() => {
+    console.log("🛡️ Creating moderatorRead contract:", MODERATOR_ADDR);
+    return new Contract(MODERATOR_ADDR, ModeratorAbi, rpcProvider);
+  }, [rpcProvider]);
 
   const [socialWrite, setSocialWrite] = useState<Contract | null>(null);
 
@@ -158,37 +189,50 @@ export default function Home() {
 
   async function loadPosts() {
     try {
+      console.log("🔄 Starting to load posts...");
       setStatus("Loading posts...");
-      const total: bigint = await socialRead.totalPosts();
-      const arr: Array<{id: bigint; author: string; content: string; flagged: boolean}> = [];
-      for (let i = 1n; i <= total; i++) {
-        const p = await socialRead.getPost(i);
-        arr.push({ id: p.id, author: p.author, content: p.content, flagged: p.flagged });
+      
+      if (!socialRead) {
+        console.error("❌ socialRead contract not initialized");
+        setStatus("Contract not initialized");
+        return;
       }
+      
+      console.log("📞 Calling totalPosts()...");
+      const total: bigint = await socialRead.totalPosts();
+      console.log(`📊 Total posts: ${total}`);
+      
+      const arr: Array<{id: bigint; author: string; content: string; flagged: boolean}> = [];
+      
+      if (total > 0n) {
+        console.log(`🔄 Loading ${total} posts...`);
+        for (let i = 1n; i <= total; i++) {
+          console.log(`📖 Loading post ${i}...`);
+          const p = await socialRead.getPost(i);
+          console.log(`✅ Post ${i}:`, { id: p.id, author: p.author, content: p.content.substring(0, 50), flagged: p.flagged });
+          arr.push({ id: p.id, author: p.author, content: p.content, flagged: p.flagged });
+        }
+      } else {
+        console.log("ℹ️ No posts found");
+      }
+      
+      console.log(`📝 Setting ${arr.length} posts to state`);
       setPosts(arr.reverse());
       setFlaggedPosts(arr.filter(p => p.flagged));
-      
-      // Apply feed ranking (temporarily disabled for debugging)
       setRankedPosts(arr);
       
-      // TODO: Re-enable feed ranking after fixing ENS issues
-      // if (contracts) {
-      //   try {
-      //     const feedRanking = createFeedRanking(contracts);
-      //     const ranked = await feedRanking.rankPosts(arr);
-      //     setRankedPosts(ranked);
-      //   } catch (error) {
-      //     console.error('Error ranking posts:', error);
-      //     setRankedPosts(arr);
-      //   }
-      // } else {
-      //   setRankedPosts(arr);
-      // }
-      
       setStatus(`Loaded ${total} posts`);
+      console.log("✅ Posts loaded successfully");
     } catch (e: any) {
-      setStatus(`RPC Error: ${e.message || String(e)}`);
-      console.error("Load posts error:", e);
+      const errorMsg = `RPC Error: ${e.message || String(e)}`;
+      setStatus(errorMsg);
+      console.error("❌ Load posts error:", e);
+      console.error("❌ Error details:", {
+        message: e.message,
+        code: e.code,
+        data: e.data,
+        stack: e.stack
+      });
     }
   }
 
