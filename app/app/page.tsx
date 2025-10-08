@@ -119,16 +119,25 @@ export default function Home() {
 
   const rpcProvider = useMemo(() => {
     console.log("🌐 Creating RPC provider:", SOMNIA_RPC);
-    // Create provider with static network to completely avoid ENS
-    const provider = new JsonRpcProvider(SOMNIA_RPC);
-    // Force static network to prevent any ENS resolution attempts
-    (provider as any)._detectNetwork = () => Promise.resolve({
-      name: "somnia-testnet",
-      chainId: 50312,
-      ensAddress: null,
-      _defaultProvider: null
-    });
-    return provider;
+    // Try the most basic provider configuration possible
+    try {
+      const provider = new JsonRpcProvider(SOMNIA_RPC);
+      // Override network detection completely
+      (provider as any)._network = Promise.resolve({
+        name: "somnia",
+        chainId: 50312,
+        ensAddress: null
+      });
+      // Disable ENS resolution entirely
+      (provider as any).resolveName = (name: string) => {
+        if (name.startsWith('0x')) return Promise.resolve(name);
+        return Promise.reject(new Error('ENS not supported'));
+      };
+      return provider;
+    } catch (error) {
+      console.error("Provider creation error:", error);
+      throw error;
+    }
   }, []);
   
   const wssProvider = useMemo(() => {
