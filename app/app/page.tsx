@@ -12,7 +12,6 @@ import ReputationDashboard from "../components/ReputationDashboard";
 import GovernancePanel from "../components/GovernancePanel";
 import { AgentAPI } from '../utils/agentApi';
 import { createFeedRanking } from '../utils/feedRanking';
-import DiagnosticPanel from '../components/DiagnosticPanel';
 import "./globals.css";
 
 const SOCIAL_ADDR = process.env.NEXT_PUBLIC_SOCIAL_POSTS_ADDRESS as string;
@@ -120,11 +119,16 @@ export default function Home() {
 
   const rpcProvider = useMemo(() => {
     console.log("🌐 Creating RPC provider:", SOMNIA_RPC);
-    // Create provider with explicit network configuration to prevent ENS
-    return new JsonRpcProvider(SOMNIA_RPC, {
+    // Create provider with static network to completely avoid ENS
+    const provider = new JsonRpcProvider(SOMNIA_RPC);
+    // Force static network to prevent any ENS resolution attempts
+    (provider as any)._detectNetwork = () => Promise.resolve({
+      name: "somnia-testnet",
       chainId: 50312,
-      name: "somnia-testnet"
+      ensAddress: null,
+      _defaultProvider: null
     });
+    return provider;
   }, []);
   
   const wssProvider = useMemo(() => {
@@ -276,29 +280,30 @@ export default function Home() {
     loadPosts();
   }, []);
 
-  useEffect(() => {
-    // Use polling instead of WebSocket subscriptions for Somnia compatibility
-    const pollForUpdates = async () => {
-      try {
-        const currentTotal = await socialRead.totalPosts();
-        const currentPostsLength = posts.length;
+  // Temporarily disable polling to isolate ENS issues
+  // useEffect(() => {
+  //   // Use polling instead of WebSocket subscriptions for Somnia compatibility
+  //   const pollForUpdates = async () => {
+  //     try {
+  //       const currentTotal = await socialRead.totalPosts();
+  //       const currentPostsLength = posts.length;
         
-        if (Number(currentTotal) > currentPostsLength) {
-          pushLog(`New posts detected: ${currentTotal} total`);
-          loadPosts();
-        }
-      } catch (error) {
-        console.error("Polling error:", error);
-      }
-    };
+  //       if (Number(currentTotal) > currentPostsLength) {
+  //         pushLog(`New posts detected: ${currentTotal} total`);
+  //         loadPosts();
+  //       }
+  //     } catch (error) {
+  //       console.error("Polling error:", error);
+  //     }
+  //   };
 
-    // Poll every 10 seconds for new posts
-    const pollInterval = setInterval(pollForUpdates, 10000);
+  //   // Poll every 10 seconds for new posts
+  //   const pollInterval = setInterval(pollForUpdates, 10000);
     
-    return () => {
-      clearInterval(pollInterval);
-    };
-  }, [posts.length]);
+  //   return () => {
+  //     clearInterval(pollInterval);
+  //   };
+  // }, [posts.length]);
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -938,9 +943,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
-      {/* Temporary diagnostic panel for debugging Vercel deployment */}
-      <DiagnosticPanel />
     </div>
   );
 }
