@@ -57,28 +57,40 @@ export default function Home() {
   const [contracts, setContracts] = useState<any>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
+  // Cache for usernames to avoid repeated blockchain calls
+  const [usernameCache, setUsernameCache] = useState<{[key: string]: string}>({});
+
   const getDisplayName = (address: string) => {
     if (!address) return 'Unknown';
     
-    // Try to get custom name from localStorage for any user
-    try {
-      const storedProfile = localStorage.getItem(`profile_${address.toLowerCase()}`);
-      if (storedProfile) {
-        const profile = JSON.parse(storedProfile);
-        if (profile.name) {
-          return profile.name;
-        }
-      }
-    } catch (e) {
-      console.error('Error reading profile from localStorage:', e);
+    // Check cache first
+    if (usernameCache[address.toLowerCase()]) {
+      return usernameCache[address.toLowerCase()];
     }
     
-    // Fallback to shortened address
+    // Fallback to shortened address while loading
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   const getUserName = (address: string) => {
     return getDisplayName(address);
+  };
+
+  // Fetch username from blockchain
+  const fetchUsername = async (address: string) => {
+    if (!socialRead || !address) return;
+    
+    try {
+      const username = await socialRead.getUsername(address);
+      if (username && username.trim() !== '') {
+        setUsernameCache(prev => ({
+          ...prev,
+          [address.toLowerCase()]: username
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching username:', error);
+    }
   };
 
   const calculateReputation = (address: string) => {
@@ -111,21 +123,65 @@ export default function Home() {
     return Math.max(0, Math.min(100, reputation));
   };
 
-  const saveProfile = () => {
-    if (account) {
-      localStorage.setItem(`profile_${account.toLowerCase()}`, JSON.stringify(userProfile));
+  const saveProfile = async () => {
+    if (!account || !socialWrite) {
+      alert("Please connect your wallet first");
+      return;
+    }
+    
+    try {
+      setStatus("Saving username on-chain...");
+      
+      // Save username to blockchain
+      if (userProfile.name && userProfile.name.trim() !== '') {
+        const tx = await socialWrite.setUsername(userProfile.name);
+        await tx.wait();
+        
+        // Update cache immediately
+        setUsernameCache(prev => ({
+          ...prev,
+          [account.toLowerCase()]: userProfile.name
+        }));
+      }
+      
+      // Save bio to localStorage (bio doesn't need to be on-chain)
+      localStorage.setItem(`profile_${account.toLowerCase()}`, JSON.stringify({
+        name: userProfile.name,
+        bio: userProfile.bio,
+        avatar: userProfile.avatar
+      }));
+      
       setEditingProfile(false);
       setStatus("Profile updated successfully!");
+    } catch (error: any) {
+      console.error('Error saving profile:', error);
+      setStatus(`Error: ${error.message || 'Failed to save profile'}`);
     }
   };
 
-  const loadProfile = (address: string) => {
+  const loadProfile = async (address: string) => {
+    // Load bio from localStorage
     const saved = localStorage.getItem(`profile_${address.toLowerCase()}`);
-    if (saved) {
-      setUserProfile(JSON.parse(saved));
-    } else {
-      setUserProfile({name: "", bio: "", avatar: ""});
+    let profile = saved ? JSON.parse(saved) : {name: "", bio: "", avatar: ""};
+    
+    // Fetch username from blockchain
+    if (socialRead && address) {
+      try {
+        const username = await socialRead.getUsername(address);
+        if (username && username.trim() !== '') {
+          profile.name = username;
+          // Update cache
+          setUsernameCache(prev => ({
+            ...prev,
+            [address.toLowerCase()]: username
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading username from blockchain:', error);
+      }
     }
+    
+    setUserProfile(profile);
   };
 
   const rpcProvider = useMemo(() => {
@@ -279,6 +335,19 @@ export default function Home() {
   useEffect(() => {
     loadPosts();
   }, []);
+
+  // Fetch usernames for all post authors when posts change
+  useEffect(() => {
+    if (posts.length > 0 && socialRead) {
+      const uniqueAuthors = [...new Set(posts.map(p => p.author))];
+      uniqueAuthors.forEach(author => {
+        // Only fetch if not in cache
+        if (!usernameCache[author.toLowerCase()]) {
+          fetchUsername(author);
+        }
+      });
+    }
+  }, [posts, socialRead]);
 
   // Temporarily disable polling to isolate ENS issues
   // useEffect(() => {
