@@ -58,16 +58,26 @@ export default function Home() {
   const logRef = useRef<HTMLDivElement>(null);
 
   const getDisplayName = (address: string) => {
-    if (userProfile.name && address.toLowerCase() === account.toLowerCase()) {
-      return userProfile.name;
+    if (!address) return 'Unknown';
+    
+    // Try to get custom name from localStorage for any user
+    try {
+      const storedProfile = localStorage.getItem(`profile_${address.toLowerCase()}`);
+      if (storedProfile) {
+        const profile = JSON.parse(storedProfile);
+        if (profile.name) {
+          return profile.name;
+        }
+      }
+    } catch (e) {
+      console.error('Error reading profile from localStorage:', e);
     }
+    
+    // Fallback to shortened address
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   const getUserName = (address: string) => {
-    if (userProfile.name && address.toLowerCase() === account.toLowerCase()) {
-      return userProfile.name;
-    }
     return getDisplayName(address);
   };
 

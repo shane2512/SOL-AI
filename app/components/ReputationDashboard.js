@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
 
 const ReputationDashboard = ({ contracts, account }) => {
   const [reputationData, setReputationData] = useState(null);
@@ -65,10 +64,15 @@ const ReputationDashboard = ({ contracts, account }) => {
       const rewardInfo = await contracts.incentiveSystem.getRewardInfo(account);
       const balance = await contracts.solToken.balanceOf(account);
       
+      // Format from wei to ether (divide by 10^18)
+      const formatEther = (wei) => {
+        return (Number(wei) / 1e18).toString();
+      };
+      
       setRewards({
-        pendingRewards: ethers.formatEther(rewardInfo.pendingRewards),
-        totalEarned: ethers.formatEther(rewardInfo.totalEarned),
-        balance: ethers.formatEther(balance),
+        pendingRewards: formatEther(rewardInfo.pendingRewards),
+        totalEarned: formatEther(rewardInfo.totalEarned),
+        balance: formatEther(balance),
         dailyRewardsLeft: rewardInfo.dailyRewardsLeft.toString(),
         nextClaimTime: new Date(Number(rewardInfo.nextClaimTime) * 1000)
       });
