@@ -317,7 +317,8 @@ export default function Home() {
         filtered = filtered.filter(p => !p.flagged).slice(0, 20);
         break;
       default:
-        filtered = filtered.filter(p => !p.flagged); // Show only safe posts by default
+        // Show all posts by default (both safe and flagged)
+        break;
     }
     
     // Apply search
@@ -567,29 +568,22 @@ export default function Home() {
                 </div>
 
                 <div className="recent-decisions">
-                  <h4 className="decisions-title">Recent Decisions</h4>
+                  <h4 className="decisions-title">Recent Flagged Posts</h4>
                   <div className="decision-list">
-                    <div className="decision-item warning">
-                      <div className="decision-icon">⚠️</div>
-                      <div className="decision-content">
-                        <div className="decision-type">Policy: Spoofing Risk</div>
-                        <div className="decision-desc">Suspicious link detected</div>
+                    {flaggedPosts.slice(0, 3).map((post) => (
+                      <div key={String(post.id)} className="decision-item warning">
+                        <div className="decision-icon">⚠️</div>
+                        <div className="decision-content">
+                          <div className="decision-type">Post #{String(post.id)}</div>
+                          <div className="decision-desc">{post.content.substring(0, 30)}...</div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="decision-item warning">
-                      <div className="decision-icon">⚠️</div>
-                      <div className="decision-content">
-                        <div className="decision-type">Policy: Low-effort</div>
-                        <div className="decision-desc">Spam content flagged</div>
+                    ))}
+                    {flaggedPosts.length === 0 && (
+                      <div className="text-center py-4 opacity-70">
+                        <p className="text-sm">No flagged posts</p>
                       </div>
-                    </div>
-                    <div className="decision-item warning">
-                      <div className="decision-icon">⚠️</div>
-                      <div className="decision-content">
-                        <div className="decision-type">Policy: Promotional</div>
-                        <div className="decision-desc">Transparency required</div>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
 

@@ -160,7 +160,14 @@ export class DirectContract {
     const result = await this.provider.callContract(this.address, data);
     
     // Decode the tuple (id, author, content, flagged, timestamp, likes, replies)
-    const hex = result.slice(2);
+    let hex = result.slice(2);
+    
+    // Check if result is wrapped in a tuple offset (first 32 bytes point to data start)
+    const possibleOffset = parseInt('0x' + hex.slice(0, 64), 16) * 2;
+    if (possibleOffset === 64) {
+      // Skip the tuple wrapper offset
+      hex = hex.slice(64);
+    }
     
     // Parse each field (each is 32 bytes = 64 hex chars)
     const idHex = '0x' + hex.slice(0, 64);
@@ -171,7 +178,7 @@ export class DirectContract {
     const likesHex = '0x' + hex.slice(320, 384);
     const repliesHex = '0x' + hex.slice(384, 448);
     
-    // Decode content (it's at an offset)
+    // Decode content (it's at an offset relative to the start of tuple data)
     const contentOffset = parseInt(contentOffsetHex, 16) * 2;
     const contentLengthHex = hex.slice(contentOffset, contentOffset + 64);
     const contentLength = parseInt(contentLengthHex, 16) * 2;
