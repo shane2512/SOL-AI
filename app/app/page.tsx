@@ -113,14 +113,14 @@ export default function Home() {
 
   const saveProfile = () => {
     if (account) {
-      localStorage.setItem(`profile_${account}`, JSON.stringify(userProfile));
+      localStorage.setItem(`profile_${account.toLowerCase()}`, JSON.stringify(userProfile));
       setEditingProfile(false);
       setStatus("Profile updated successfully!");
     }
   };
 
   const loadProfile = (address: string) => {
-    const saved = localStorage.getItem(`profile_${address}`);
+    const saved = localStorage.getItem(`profile_${address.toLowerCase()}`);
     if (saved) {
       setUserProfile(JSON.parse(saved));
     } else {
