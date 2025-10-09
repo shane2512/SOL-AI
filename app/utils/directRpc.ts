@@ -80,9 +80,9 @@ export class AbiCoder {
   static getFunctionSelector(signature: string): string {
     // Common function selectors we need
     const selectors: { [key: string]: string } = {
-      'totalPosts()': '0x2e52d606',
-      'getPost(uint256)': '0x01e33667',
-      'createPost(string)': '0x3b5c4769',
+      'totalPosts()': '0x8e53fb41',
+      'getPost(uint256)': '0x40731c24',
+      'createPost(string)': '0xc7303c61',
     };
     return selectors[signature] || '0x';
   }
@@ -151,12 +151,15 @@ export class DirectContract {
     author: string;
     content: string;
     flagged: boolean;
+    timestamp?: bigint;
+    likes?: bigint;
+    replies?: bigint;
   }> {
     const data = AbiCoder.encodeFunctionCall('getPost(uint256)') + 
                  AbiCoder.encodeUint256(id).slice(2);
     const result = await this.provider.callContract(this.address, data);
     
-    // Decode the tuple (id, author, content, flagged)
+    // Decode the tuple (id, author, content, flagged, timestamp, likes, replies)
     const hex = result.slice(2);
     
     // Parse each field (each is 32 bytes = 64 hex chars)
@@ -164,6 +167,9 @@ export class DirectContract {
     const authorHex = '0x' + hex.slice(64, 128);
     const contentOffsetHex = '0x' + hex.slice(128, 192);
     const flaggedHex = '0x' + hex.slice(192, 256);
+    const timestampHex = '0x' + hex.slice(256, 320);
+    const likesHex = '0x' + hex.slice(320, 384);
+    const repliesHex = '0x' + hex.slice(384, 448);
     
     // Decode content (it's at an offset)
     const contentOffset = parseInt(contentOffsetHex, 16) * 2;
@@ -184,6 +190,9 @@ export class DirectContract {
       author: AbiCoder.decodeAddress(authorHex),
       content: content,
       flagged: AbiCoder.decodeBool(flaggedHex),
+      timestamp: AbiCoder.decodeUint256(timestampHex),
+      likes: AbiCoder.decodeUint256(likesHex),
+      replies: AbiCoder.decodeUint256(repliesHex),
     };
   }
 }
