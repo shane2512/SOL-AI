@@ -59,6 +59,7 @@ export default function Home() {
 
   // Cache for usernames to avoid repeated blockchain calls
   const [usernameCache, setUsernameCache] = useState<{[key: string]: string}>({});
+  const [, forceUpdate] = useState({});
 
   const getDisplayName = (address: string) => {
     if (!address) return 'Unknown';
@@ -81,15 +82,22 @@ export default function Home() {
     if (!socialRead || !address) return;
     
     try {
+      console.log(`🔍 Fetching username for ${address}...`);
       const username = await socialRead.getUsername(address);
+      console.log(`✅ Username for ${address}: "${username}"`);
+      
       if (username && username.trim() !== '') {
         setUsernameCache(prev => ({
           ...prev,
           [address.toLowerCase()]: username
         }));
+        // Force re-render to show updated username
+        forceUpdate({});
+      } else {
+        console.log(`⚠️ No username set for ${address}`);
       }
     } catch (error) {
-      console.error('Error fetching username:', error);
+      console.error(`❌ Error fetching username for ${address}:`, error);
     }
   };
 
