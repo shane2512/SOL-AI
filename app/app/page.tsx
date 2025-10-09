@@ -214,14 +214,18 @@ export default function Home() {
       }
       
       console.log(`📝 Setting ${arr.length} posts to state`);
-      setPosts(arr.reverse());
+      const reversed = arr.reverse();
+      console.log(`📝 Reversed array length: ${reversed.length}`);
+      console.log(`📝 First 3 posts:`, reversed.slice(0, 3).map(p => ({ id: String(p.id), content: p.content.substring(0, 20) })));
+      
+      setPosts(reversed);
       setFlaggedPosts(arr.filter(p => p.flagged));
       setRankedPosts(arr);
       
       if (total === 0n) {
         setStatus("No posts yet - connect wallet and create the first post!");
       } else {
-        setStatus(`Loaded ${total} posts`);
+        setStatus(`Loaded ${arr.length} posts successfully`);
       }
       console.log("✅ Posts loaded successfully via direct RPC");
     } catch (e: any) {
@@ -299,7 +303,9 @@ export default function Home() {
 
   // Filter posts based on active filter, search query, and feed variant
   const filteredPosts = useMemo(() => {
+    console.log(`🔍 Filtering posts: total=${posts.length}, ranked=${rankedPosts.length}, variant=${feedVariant}, filter=${activeFilter}`);
     let filtered = feedVariant === 'ranked' ? rankedPosts : posts;
+    console.log(`🔍 After variant selection: ${filtered.length} posts`);
     
     // Apply filter
     switch (activeFilter) {
@@ -320,6 +326,7 @@ export default function Home() {
         // Show all posts by default (both safe and flagged)
         break;
     }
+    console.log(`🔍 After filter (${activeFilter}): ${filtered.length} posts`);
     
     // Apply search
     if (searchQuery.trim()) {
@@ -327,8 +334,10 @@ export default function Home() {
         p.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.author.toLowerCase().includes(searchQuery.toLowerCase())
       );
+      console.log(`🔍 After search: ${filtered.length} posts`);
     }
     
+    console.log(`🔍 Final filtered posts: ${filtered.length}`);
     return filtered;
   }, [posts, rankedPosts, activeFilter, searchQuery, account, feedVariant]);
 

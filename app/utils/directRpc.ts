@@ -89,6 +89,10 @@ export class AbiCoder {
 
   // Decode uint256
   static decodeUint256(hex: string): bigint {
+    // Handle empty or invalid hex strings
+    if (!hex || hex === '0x' || hex.length < 3) {
+      return 0n;
+    }
     return BigInt(hex);
   }
 
