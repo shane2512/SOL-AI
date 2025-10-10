@@ -51,13 +51,13 @@ export default function Home() {
   const [showEventLog, setShowEventLog] = useState<boolean>(false);
   const [showFlaggedPosts, setShowFlaggedPosts] = useState<boolean>(false);
   const [showCreatePost, setShowCreatePost] = useState<boolean>(false);
-  const [notification, setNotification] = useState<string>("");
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [showProfile, setShowProfile] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<{name: string; bio: string; avatar: string}>({name: "", bio: "", avatar: ""});
   const [editingProfile, setEditingProfile] = useState<boolean>(false);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [mobileProfileOpen, setMobileProfileOpen] = useState<boolean>(false);
   const [showReputationDashboard, setShowReputationDashboard] = useState<boolean>(false);
   const [showGovernance, setShowGovernance] = useState<boolean>(false);
   const [feedVariant, setFeedVariant] = useState<string>('ranked');
@@ -575,6 +575,16 @@ export default function Home() {
             ☰
           </button>
           
+          <button 
+            className="mobile-profile-btn"
+            onClick={() => setMobileProfileOpen(!mobileProfileOpen)}
+            title="Profile"
+          >
+            <div className="profile-avatar-small">
+              {account ? getAvatarInitials(account) : '?'}
+            </div>
+          </button>
+          
           <div className="search-container">
             <input
               type="text"
@@ -596,7 +606,7 @@ export default function Home() {
         {/* Content Grid */}
         <div className="content-grid">
           {/* Left Column - Profile/Stats */}
-          <aside className="left-sidebar">
+          <aside className={`left-sidebar ${mobileProfileOpen ? 'mobile-profile-open' : ''}`}>
             <div className="profile-card">
               <div className="profile-header">
                 <div className="profile-avatar">
