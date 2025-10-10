@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ethers } from "ethers";
+import { AnimatePresence } from "framer-motion";
+import toast from "react-hot-toast";
 import SocialAbi from "../contracts/abis/SocialPosts.json";
 import ModeratorAbi from "../contracts/abis/Moderator.json";
 import ReputationAbi from "../contracts/abis/ReputationSystem.json";
@@ -10,6 +12,12 @@ import IncentiveAbi from "../contracts/abis/IncentiveSystem.json";
 import GovernanceAbi from "../contracts/abis/GovernanceSystem.json";
 import ReputationDashboard from "../components/ReputationDashboard";
 import GovernancePanel from "../components/GovernancePanel";
+import AnimatedPostCard from "../components/AnimatedPostCard";
+import AnimatedModal from "../components/AnimatedModal";
+import AnimatedButton from "../components/AnimatedButton";
+import AnimatedCounter from "../components/AnimatedCounter";
+import ToastProvider from "../components/ToastProvider";
+import { PostSkeleton, ProfileSkeleton, StatsSkeleton } from "../components/LoadingSkeleton";
 import { AgentAPI } from '../utils/agentApi';
 import { createFeedRanking } from '../utils/feedRanking';
 import { DirectRpcProvider, DirectContract } from '../utils/directRpc';
@@ -55,6 +63,8 @@ export default function Home() {
   const [feedVariant, setFeedVariant] = useState<string>('ranked');
   const [rankedPosts, setRankedPosts] = useState<Array<any>>([]);
   const [contracts, setContracts] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const logRef = useRef<HTMLDivElement>(null);
 
   // Cache for usernames to avoid repeated blockchain calls
@@ -79,25 +89,43 @@ export default function Home() {
 
   // Fetch username from blockchain
   const fetchUsername = async (address: string) => {
-    if (!socialRead || !address) return;
+    if (!socialRead || !address) {
+      console.log(`⚠️ Cannot fetch username: socialRead=${!!socialRead}, address=${address}`);
+      return;
+    }
     
     try {
       console.log(`🔍 Fetching username for ${address}...`);
       const username = await socialRead.getUsername(address);
-      console.log(`✅ Username for ${address}: "${username}"`);
+      console.log(`✅ Raw username response for ${address}:`, username);
       
       if (username && username.trim() !== '') {
-        setUsernameCache(prev => ({
-          ...prev,
-          [address.toLowerCase()]: username
-        }));
+        console.log(`💾 Caching username "${username}" for ${address}`);
+        setUsernameCache(prev => {
+          const updated = {
+            ...prev,
+            [address.toLowerCase()]: username
+          };
+          console.log(`📦 Updated cache:`, updated);
+          return updated;
+        });
         // Force re-render to show updated username
         forceUpdate({});
       } else {
-        console.log(`⚠️ No username set for ${address}`);
+        console.log(`⚠️ No username set for ${address} (empty or whitespace)`);
+        // Cache the fact that there's no username to avoid repeated calls
+        setUsernameCache(prev => ({
+          ...prev,
+          [address.toLowerCase()]: `${address.slice(0, 6)}...${address.slice(-4)}`
+        }));
       }
     } catch (error) {
       console.error(`❌ Error fetching username for ${address}:`, error);
+      // Cache the shortened address on error to avoid repeated failed calls
+      setUsernameCache(prev => ({
+        ...prev,
+        [address.toLowerCase()]: `${address.slice(0, 6)}...${address.slice(-4)}`
+      }));
     }
   };
 
@@ -206,12 +234,16 @@ export default function Home() {
 
   const socialRead = useMemo(() => {
     console.log("📄 Creating socialRead contract:", SOCIAL_ADDR);
-    return new ethers.Contract(SOCIAL_ADDR, SocialAbi, rpcProvider);
+    // Extract ABI from artifact if needed
+    const abi = Array.isArray(SocialAbi) ? SocialAbi : (SocialAbi as any).abi;
+    return new ethers.Contract(SOCIAL_ADDR, abi, rpcProvider);
   }, [rpcProvider]);
   
   const moderatorRead = useMemo(() => {
     console.log("🛡️ Creating moderatorRead contract:", MODERATOR_ADDR);
-    return new ethers.Contract(MODERATOR_ADDR, ModeratorAbi, rpcProvider);
+    // Extract ABI from artifact if needed
+    const abi = Array.isArray(ModeratorAbi) ? ModeratorAbi : (ModeratorAbi as any).abi;
+    return new ethers.Contract(MODERATOR_ADDR, abi, rpcProvider);
   }, [rpcProvider]);
 
   const [socialWrite, setSocialWrite] = useState<ethers.Contract | null>(null);
@@ -235,18 +267,27 @@ export default function Home() {
       const signer = provider.getSigner();
       const address = await signer.getAddress();
       setAccount(address);
-      const socialWriteContract = new ethers.Contract(SOCIAL_ADDR, SocialAbi, signer);
+      
+      // Extract ABIs from artifacts
+      const socialAbi = Array.isArray(SocialAbi) ? SocialAbi : (SocialAbi as any).abi;
+      const moderatorAbi = Array.isArray(ModeratorAbi) ? ModeratorAbi : (ModeratorAbi as any).abi;
+      const reputationAbi = Array.isArray(ReputationAbi) ? ReputationAbi : (ReputationAbi as any).abi;
+      const reputationSBTAbi = Array.isArray(ReputationSBTAbi) ? ReputationSBTAbi : (ReputationSBTAbi as any).abi;
+      const incentiveAbi = Array.isArray(IncentiveAbi) ? IncentiveAbi : (IncentiveAbi as any).abi;
+      const governanceAbi = Array.isArray(GovernanceAbi) ? GovernanceAbi : (GovernanceAbi as any).abi;
+      
+      const socialWriteContract = new ethers.Contract(SOCIAL_ADDR, socialAbi, signer);
       setSocialWrite(socialWriteContract);
       
       // Set up contracts object for new components
       setContracts({
         socialPosts: socialWriteContract,
-        moderator: new ethers.Contract(MODERATOR_ADDR, ModeratorAbi, signer),
-        reputationSystem: new ethers.Contract(REPUTATION_ADDR, ReputationAbi.abi, signer),
-        reputationSBT: new ethers.Contract(REPUTATION_SBT_ADDR, ReputationSBTAbi.abi, signer),
-        solToken: new ethers.Contract(SOL_TOKEN_ADDR, IncentiveAbi.abi, signer),
-        incentiveSystem: new ethers.Contract(INCENTIVE_ADDR, IncentiveAbi.abi, signer),
-        governanceSystem: new ethers.Contract(GOVERNANCE_ADDR, GovernanceAbi.abi, signer)
+        moderator: new ethers.Contract(MODERATOR_ADDR, moderatorAbi, signer),
+        reputationSystem: new ethers.Contract(REPUTATION_ADDR, reputationAbi, signer),
+        reputationSBT: new ethers.Contract(REPUTATION_SBT_ADDR, reputationSBTAbi, signer),
+        solToken: new ethers.Contract(SOL_TOKEN_ADDR, incentiveAbi, signer),
+        incentiveSystem: new ethers.Contract(INCENTIVE_ADDR, incentiveAbi, signer),
+        governanceSystem: new ethers.Contract(GOVERNANCE_ADDR, governanceAbi, signer)
       });
       
       loadProfile(address);
@@ -259,6 +300,7 @@ export default function Home() {
   async function loadPosts() {
     try {
       console.log("🔄 Starting to load posts with direct RPC...");
+      setIsLoading(true);
       setStatus("Loading posts...");
       
       // Use direct RPC to completely bypass ethers.js ENS issues
@@ -298,11 +340,13 @@ export default function Home() {
         setStatus("No posts yet - connect wallet and create the first post!");
       } else {
         setStatus(`Loaded ${arr.length} posts successfully`);
+        toast.success(`Loaded ${arr.length} posts from blockchain`);
       }
       console.log("✅ Posts loaded successfully via direct RPC");
     } catch (e: any) {
       const errorMsg = `RPC Error: ${e.message || String(e)}`;
       setStatus(errorMsg);
+      toast.error("Failed to load posts");
       console.error("❌ Load posts error:", e);
       console.error("❌ Error details:", {
         message: e.message,
@@ -310,19 +354,33 @@ export default function Home() {
         data: e.data,
         stack: e.stack
       });
+    } finally {
+      setIsLoading(false);
     }
   }
 
   async function submitPost() {
-    if (!socialWrite) return alert("Connect wallet first");
+    if (!socialWrite) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
     if (!postInput.trim()) return;
+    
+    setIsSubmitting(true);
+    const toastId = toast.loading("Submitting post to blockchain...");
+    
     try {
       setStatus("Submitting post...");
       const tx = await socialWrite.createPost(postInput.trim());
+      
+      toast.loading("Waiting for confirmation...", { id: toastId });
       await tx.wait();
+      
       setPostInput("");
       setShowCreatePost(false);
       setStatus("Post submitted");
+      toast.success("Post submitted successfully!", { id: toastId });
+      
       await loadPosts();
       
       // Check if the post gets flagged (wait a bit for AI processing)
@@ -330,13 +388,17 @@ export default function Home() {
         const newTotal = await socialRead.totalPosts();
         const latestPost = await socialRead.getPost(newTotal);
         if (latestPost.flagged && latestPost.author.toLowerCase() === account.toLowerCase()) {
-          setNotification("⚠️ Your post has been flagged by our AI moderation system for potentially toxic content.");
-          setTimeout(() => setNotification(""), 5000);
+          toast.error("⚠️ Your post has been flagged by our AI moderation system for potentially toxic content.", {
+            duration: 6000,
+          });
         }
       }, 10000); // Wait 10 seconds for AI processing
       
     } catch (e: any) {
       setStatus(e.message || String(e));
+      toast.error(`Failed to submit post: ${e.message || "Unknown error"}`, { id: toastId });
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -348,14 +410,18 @@ export default function Home() {
   useEffect(() => {
     if (posts.length > 0 && socialRead) {
       const uniqueAuthors = [...new Set(posts.map(p => p.author))];
+      console.log(`📋 Fetching usernames for ${uniqueAuthors.length} unique authors`);
       uniqueAuthors.forEach(author => {
         // Only fetch if not in cache
         if (!usernameCache[author.toLowerCase()]) {
+          console.log(`🔄 Fetching username for ${author} (not in cache)`);
           fetchUsername(author);
+        } else {
+          console.log(`✅ Username for ${author} already cached: ${usernameCache[author.toLowerCase()]}`);
         }
       });
     }
-  }, [posts, socialRead]);
+  }, [posts.length, socialRead]); // Changed dependency to posts.length to avoid infinite loops
 
   // Temporarily disable polling to isolate ENS issues
   // useEffect(() => {
@@ -428,12 +494,8 @@ export default function Home() {
 
   return (
     <div className="app-layout">
-      {/* Notification */}
-      {notification && (
-        <div className={`notification notification-error animate-fade-in`}>
-          {notification}
-        </div>
-      )}
+      {/* Toast Notifications */}
+      <ToastProvider />
 
       {/* Mobile Overlay */}
       {sidebarOpen && <div className="mobile-overlay" onClick={() => setSidebarOpen(false)}></div>}
@@ -553,15 +615,24 @@ export default function Home() {
               
               <div className="profile-stats">
                 <div className="stat">
-                  <span className="stat-value">{posts.filter(p => p.author.toLowerCase() === account.toLowerCase()).length}</span>
+                  <AnimatedCounter 
+                    value={posts.filter(p => p.author.toLowerCase() === account.toLowerCase()).length} 
+                    className="stat-value"
+                  />
                   <span className="stat-label">Posts</span>
                 </div>
                 <div className="stat">
-                  <span className="stat-value">{posts.filter(p => p.author.toLowerCase() === account.toLowerCase() && !p.flagged).length}</span>
+                  <AnimatedCounter 
+                    value={posts.filter(p => p.author.toLowerCase() === account.toLowerCase() && !p.flagged).length}
+                    className="stat-value"
+                  />
                   <span className="stat-label">Safe</span>
                 </div>
                 <div className="stat">
-                  <span className="stat-value">{calculateReputation(account)}</span>
+                  <AnimatedCounter 
+                    value={calculateReputation(account)}
+                    className="stat-value"
+                  />
                   <span className="stat-label">Reputation</span>
                 </div>
               </div>
@@ -598,39 +669,28 @@ export default function Home() {
 
             {/* Post Feed */}
             <div className="post-feed">
-              {filteredPosts.map((post) => (
-                <article key={String(post.id)} className="post-card">
-                  <div className="post-header">
-                    <div className="post-avatar">
-                      {getAvatarInitials(post.author)}
-                    </div>
-                    <div className="post-meta">
-                      <div className="post-author">
-                        <span className="author-name">{getUserName(post.author)}</span>
-                        <span className="post-id">#{String(post.id)}</span>
-                      </div>
-                      <div className="post-time">Just now</div>
-                    </div>
-                    <div className="post-badges">
-                      <div className={`moderation-badge ${post.flagged ? 'flagged' : 'safe'}`}>
-                        {post.flagged ? 'Flagged' : 'Safe'}
-                      </div>
-                      {post.rankingScore && (
-                        <div className="ranking-badge" title={`Ranking Score: ${post.rankingScore.toFixed(2)}`}>
-                          ⭐ {post.rankingScore.toFixed(1)}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="post-content">
-                    {post.content}
-                  </div>
-                  
-                </article>
-              ))}
+              {isLoading ? (
+                // Loading skeletons
+                <>
+                  {[1, 2, 3].map((i) => (
+                    <PostSkeleton key={i} />
+                  ))}
+                </>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {filteredPosts.map((post, index) => (
+                    <AnimatedPostCard
+                      key={`${String(post.id)}-${usernameCache[post.author.toLowerCase()] || 'loading'}`}
+                      post={post}
+                      index={index}
+                      getAvatarInitials={getAvatarInitials}
+                      getUserName={getUserName}
+                    />
+                  ))}
+                </AnimatePresence>
+              )}
               
-              {filteredPosts.length === 0 && (
+              {!isLoading && filteredPosts.length === 0 && (
                 <div className="empty-state">
                   <h3 className="empty-title">No posts found</h3>
                   <p className="empty-description">
@@ -653,7 +713,7 @@ export default function Home() {
                   <div className="metric-header">
                     <span className="metric-label">Flags today</span>
                   </div>
-                  <div className="metric-value">{flaggedPosts.length}</div>
+                  <AnimatedCounter value={flaggedPosts.length} className="metric-value" />
                 </div>
 
                 <div className="recent-decisions">

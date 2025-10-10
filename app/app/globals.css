@@ -6,34 +6,65 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
 
-/* CSS Variables for Design System */
+/* CSS Variables for Design System - Obsidian Nexus Theme */
 :root {
-  /* Colors - Nebula Social Inspired */
-  --color-bg-primary: #0B0F1A;
-  --color-bg-secondary: #151B2B;
-  --color-bg-tertiary: #1E2A3E;
-  --color-surface: rgba(255, 255, 255, 0.05);
-  --color-surface-hover: rgba(255, 255, 255, 0.08);
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-border-active: rgba(34, 197, 94, 0.3);
+  /* Core Backgrounds - Pure Black Foundation */
+  --bg-primary: #000000;        /* Pure Black - Main background */
+  --bg-secondary: #0A0A0A;      /* Jet Black - Slightly elevated surfaces */
+  --bg-tertiary: #121212;       /* Charcoal Black - Cards, modals */
   
-  --color-text-primary: #FFFFFF;
-  --color-text-secondary: rgba(255, 255, 255, 0.7);
-  --color-text-tertiary: rgba(255, 255, 255, 0.5);
-  --color-text-accent: #00FF88;
+  /* Surface Elevation System */
+  --surface-1: #0A0A0A;         /* Slightly elevated */
+  --surface-2: #121212;         /* Cards, modals */
+  --surface-3: #1E1E1E;         /* Floating elements */
+  --surface-4: #282828;         /* Highest elevation */
   
-  --color-accent-primary: #00FF88;
-  --color-accent-secondary: #0066FF;
-  --color-accent-purple: #8B5CF6;
-  --color-warning: #F59E0B;
-  --color-danger: #EF4444;
-  --color-success: #10B981;
+  /* Glass Effects - Enhanced Glassmorphism */
+  --glass-bg: rgba(139, 92, 246, 0.05);
+  --glass-border: rgba(139, 92, 246, 0.1);
+  --glass-shadow: rgba(0, 0, 0, 0.3);
+  --glass-backdrop: blur(20px);
   
-  /* Gradients */
-  --gradient-bg: linear-gradient(135deg, #0B0F1A 0%, #151B2B 50%, #1E2A3E 100%);
-  --gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-  --gradient-accent: linear-gradient(135deg, #00FF88 0%, #0066FF 100%);
+  /* Interactive States */
+  --hover-overlay: rgba(139, 92, 246, 0.1);
+  --active-overlay: rgba(139, 92, 246, 0.2);
+  --focus-ring: rgba(139, 92, 246, 0.5);
+  
+  /* Text Colors - High Contrast */
+  --color-text-primary: #FFFFFF;      /* Pure White - Main content */
+  --color-text-secondary: #E5E7EB;    /* Light Gray - Timestamps, metadata */
+  --color-text-tertiary: #9CA3AF;     /* Medium Gray - Placeholders */
+  
+  /* Accent Colors - AI/Crypto Theme */
+  --color-accent-primary: #8B5CF6;    /* Violet - Primary brand color */
+  --color-accent-secondary: #06FFA5;  /* Neon Green - Success, AI processing */
+  --color-accent-tertiary: #3B82F6;   /* Electric Blue - Links, interactive */
+  
+  /* Status Colors */
+  --color-success: #10B981;     /* Emerald Green - Safe content */
+  --color-warning: #F59E0B;     /* Amber - AI processing */
+  --color-danger: #EF4444;      /* Red - Flagged content */
+  --color-info: #3B82F6;        /* Blue - Blockchain status */
+  
+  /* Web3/Crypto Accents */
+  --color-gold: #FFD700;        /* Gold - Premium features, wallet */
+  --color-silver: #C0C0C0;      /* Silver - Secondary highlights */
+  --color-neon-pink: #FF0080;   /* Neon Pink - CTAs */
+  --color-cyan: #00FFFF;        /* Cyan - Real-time indicators */
+  
+  /* AI/Blockchain Themed */
+  --ai-processing: #06FFA5;
+  --blockchain-active: #8B5CF6;
+  --wallet-connected: #FFD700;
+  
+  /* Gradients - Cyber Noir */
+  --gradient-bg: linear-gradient(135deg, #000000 0%, #0D0D0D 50%, #1A0A1A 100%);
+  --gradient-card: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+  --gradient-accent: linear-gradient(135deg, #8B5CF6 0%, #06FFA5 100%);
   --gradient-purple: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+  --gradient-neon: linear-gradient(135deg, #06FFA5 0%, #00FFFF 100%);
+  --gradient-button: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  --gradient-button-hover: linear-gradient(135deg, #9333EA 0%, #8B5CF6 100%);
   
   /* Typography */
   --font-brand: 'Unbounded', sans-serif;
@@ -366,19 +397,26 @@ body {
   gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--gradient-accent);
-  border: none;
+  border: 1px solid rgba(139, 92, 246, 0.5);
   border-radius: var(--radius-md);
   color: white;
   font-family: var(--font-body);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 4px 12px rgba(139, 92, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .create-post-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: rgba(139, 92, 246, 0.8);
+  box-shadow: 
+    0 6px 20px rgba(139, 92, 246, 0.4),
+    0 0 20px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* Content Grid */
@@ -658,18 +696,37 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
 }
 
 .moderation-badge.safe {
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(16, 185, 129, 0.15);
   color: var(--color-success);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+}
+
+.moderation-badge.safe:hover {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+  transform: scale(1.05);
 }
 
 .moderation-badge.flagged {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(239, 68, 68, 0.15);
   color: var(--color-danger);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
+  animation: pulse-danger 2s ease-in-out infinite;
+}
+
+@keyframes pulse-danger {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  }
 }
 
 .post-content {
@@ -1550,22 +1607,23 @@ body {
 .text-3xl { font-size: 30px; }
 .text-4xl { font-size: 36px; }
 
-/* Button Base Styles */
+/* Button Base Styles - Enhanced Visibility */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-md) var(--spacing-lg);
-  border: none;
+  border: 1px solid rgba(139, 92, 246, 0.3);
   border-radius: var(--radius-lg);
   font-family: var(--font-nav);
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
   white-space: nowrap;
+  backdrop-filter: blur(10px);
 }
 
 .btn:disabled {
@@ -1576,35 +1634,46 @@ body {
 /* Button Variants */
 .btn-primary {
   background: var(--gradient-button);
-  color: var(--color-white);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--color-border);
+  color: #FFFFFF;
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  box-shadow: 
+    0 4px 12px rgba(139, 92, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: var(--gradient-button-hover);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-  border-color: var(--color-border-active);
+  border-color: rgba(139, 92, 246, 0.8);
+  box-shadow: 
+    0 6px 20px rgba(139, 92, 246, 0.4),
+    0 0 20px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .btn-secondary {
-  background: transparent;
-  color: var(--color-emerald);
-  border: 1px solid var(--color-emerald);
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  backdrop-filter: blur(10px);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(34, 197, 94, 0.1);
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
 }
 
 .btn-danger {
-  background: var(--color-red);
-  color: var(--color-white);
+  background: rgba(239, 68, 68, 0.9);
+  color: #FFFFFF;
+  border: 1px solid rgba(239, 68, 68, 0.5);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #dc2626;
+  background: #EF4444;
+  border-color: rgba(239, 68, 68, 0.8);
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
 }
 
 /* Card Styles */
@@ -2019,16 +2088,23 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* Post Card Specific Styles */
+/* Post Card Specific Styles - Enhanced Glassmorphism */
 .post-card {
-  background: var(--gradient-card);
-  backdrop-filter: var(--glass-backdrop);
-  border: 1px solid var(--color-border);
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.1) 0%,
+    rgba(59, 130, 246, 0.05) 100%
+  );
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-md);
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  box-shadow: 
+    0 8px 32px var(--glass-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
@@ -2039,7 +2115,11 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--gradient-card);
+  background: radial-gradient(
+    circle at top left,
+    rgba(139, 92, 246, 0.15) 0%,
+    transparent 50%
+  );
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
@@ -2047,12 +2127,53 @@ body {
 
 .post-card:hover {
   transform: translateY(-2px);
-  border-color: var(--color-border-active);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .post-card:hover::before {
-  opacity: 0.1;
+  opacity: 1;
+}
+
+/* Post Status Variants - Cyber Noir Theme */
+.post-card.post-safe {
+  border-left: 3px solid var(--color-success);
+}
+
+.post-card.post-flagged {
+  border-left: 3px solid var(--color-danger);
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.08) 0%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+}
+
+.post-card.post-processing {
+  border-left: 3px solid var(--color-warning);
+  background: linear-gradient(
+    135deg,
+    rgba(245, 158, 11, 0.08) 0%,
+    rgba(139, 92, 246, 0.05) 100%
+  );
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 
+      0 8px 32px var(--glass-shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 8px 32px var(--glass-shadow),
+      0 0 20px rgba(245, 158, 11, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
 }
 
 .post-header {
