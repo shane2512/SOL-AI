@@ -14,7 +14,11 @@ SOCIAL_ADDR = Web3.to_checksum_address(os.getenv("SOCIAL_POSTS_ADDRESS", ""))
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ABI_DIR = REPO_ROOT / "app" / "contracts" / "abis"
 with open(ABI_DIR / "SocialPosts.json", "r", encoding="utf-8") as f:
-    SOCIAL_ABI = json.load(f)
+    artifact = json.load(f)
+    if isinstance(artifact, dict) and 'abi' in artifact:
+        SOCIAL_ABI = artifact['abi']
+    else:
+        SOCIAL_ABI = artifact
 
 # Web3 setup
 w3 = Web3(Web3.HTTPProvider(SOMNIA_RPC_URL))
