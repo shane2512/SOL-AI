@@ -8,6 +8,7 @@ import SocialAbi from "../contracts/abis/SocialPosts.json";
 import ModeratorAbi from "../contracts/abis/Moderator.json";
 import ReputationAbi from "../contracts/abis/ReputationSystem.json";
 import ReputationSBTAbi from "../contracts/abis/ReputationSBT.json";
+import SOLTokenAbi from "../contracts/abis/SOLToken.json";
 import IncentiveAbi from "../contracts/abis/IncentiveSystem.json";
 import GovernanceAbi from "../contracts/abis/GovernanceSystem.json";
 import ReputationDashboard from "../components/ReputationDashboard";
@@ -273,6 +274,7 @@ export default function Home() {
       const moderatorAbi = Array.isArray(ModeratorAbi) ? ModeratorAbi : (ModeratorAbi as any).abi;
       const reputationAbi = Array.isArray(ReputationAbi) ? ReputationAbi : (ReputationAbi as any).abi;
       const reputationSBTAbi = Array.isArray(ReputationSBTAbi) ? ReputationSBTAbi : (ReputationSBTAbi as any).abi;
+      const solTokenAbi = Array.isArray(SOLTokenAbi) ? SOLTokenAbi : (SOLTokenAbi as any).abi;
       const incentiveAbi = Array.isArray(IncentiveAbi) ? IncentiveAbi : (IncentiveAbi as any).abi;
       const governanceAbi = Array.isArray(GovernanceAbi) ? GovernanceAbi : (GovernanceAbi as any).abi;
       
@@ -285,7 +287,7 @@ export default function Home() {
         moderator: new ethers.Contract(MODERATOR_ADDR, moderatorAbi, signer),
         reputationSystem: new ethers.Contract(REPUTATION_ADDR, reputationAbi, signer),
         reputationSBT: new ethers.Contract(REPUTATION_SBT_ADDR, reputationSBTAbi, signer),
-        solToken: new ethers.Contract(SOL_TOKEN_ADDR, incentiveAbi, signer),
+        solToken: new ethers.Contract(SOL_TOKEN_ADDR, solTokenAbi, signer),
         incentiveSystem: new ethers.Contract(INCENTIVE_ADDR, incentiveAbi, signer),
         governanceSystem: new ethers.Contract(GOVERNANCE_ADDR, governanceAbi, signer)
       });
@@ -383,6 +385,17 @@ export default function Home() {
       
       await loadPosts();
       
+      // Update reputation after posting
+      if (contracts?.reputationSystem) {
+        try {
+          const repTx = await contracts.reputationSystem.updateReputation(account);
+          await repTx.wait();
+          console.log("✅ Reputation updated after post creation");
+        } catch (repError) {
+          console.error("Failed to update reputation:", repError);
+        }
+      }
+      
       // Check if the post gets flagged (wait a bit for AI processing)
       setTimeout(async () => {
         const newTotal = await socialRead.totalPosts();
@@ -391,6 +404,16 @@ export default function Home() {
           toast.error("⚠️ Your post has been flagged by our AI moderation system for potentially toxic content.", {
             duration: 6000,
           });
+          // Update reputation again after flagging
+          if (contracts?.reputationSystem) {
+            try {
+              const repTx = await contracts.reputationSystem.updateReputation(account);
+              await repTx.wait();
+              console.log("✅ Reputation updated after post flagged");
+            } catch (repError) {
+              console.error("Failed to update reputation after flag:", repError);
+            }
+          }
         }
       }, 10000); // Wait 10 seconds for AI processing
       

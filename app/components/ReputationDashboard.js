@@ -18,20 +18,104 @@ const ReputationDashboard = ({ contracts, account }) => {
 
   const fetchReputationData = async () => {
     try {
-      const reputation = await contracts.reputationSystem.getUserReputation(account);
-      const currentScore = await contracts.reputationSystem.getReputationScore(account);
-      const tier = await contracts.reputationSystem.getUserTier(account);
+      // Try to use ReputationSystem contract first
+      if (contracts.reputationSystem) {
+        try {
+          const reputation = await contracts.reputationSystem.getUserReputation(account);
+          const currentScore = await contracts.reputationSystem.getReputationScore(account);
+          const tier = await contracts.reputationSystem.getUserTier(account);
+          
+          setReputationData({
+            score: currentScore.toString(),
+            tier: tier.toString(),
+            totalPosts: reputation.totalPosts.toString(),
+            safePosts: reputation.safePosts.toString(),
+            flaggedPosts: reputation.flaggedPosts.toString(),
+            lastUpdated: new Date(Number(reputation.lastUpdated) * 1000)
+          });
+          setLoading(false);
+          return;
+        } catch (contractError) {
+          console.warn('ReputationSystem contract call failed, falling back to SocialPosts:', contractError);
+        }
+      }
       
-      setReputationData({
-        score: currentScore.toString(),
-        tier: tier.toString(),
-        totalPosts: reputation.totalPosts.toString(),
-        safePosts: reputation.safePosts.toString(),
-        flaggedPosts: reputation.flaggedPosts.toString(),
-        lastUpdated: new Date(Number(reputation.lastUpdated) * 1000)
-      });
+      // Fallback: Calculate from SocialPosts contract directly
+      if (contracts.socialPosts) {
+        console.log('Calculating reputation from SocialPosts contract...');
+        const totalPosts = await contracts.socialPosts.totalPosts();
+        let userTotalPosts = 0;
+        let userSafePosts = 0;
+        let userFlaggedPosts = 0;
+        
+        // Iterate through all posts to find user's posts
+        for (let i = 1; i <= totalPosts; i++) {
+          try {
+            const postData = await contracts.socialPosts.getPost(i);
+            // getPost returns array: [id, author, content, flagged, likes, timestamp, replyTo]
+            const author = postData[1];
+            const flagged = postData[3];
+            
+            if (author && author.toLowerCase() === account.toLowerCase()) {
+              userTotalPosts++;
+              if (flagged) {
+                userFlaggedPosts++;
+              } else {
+                userSafePosts++;
+              }
+            }
+          } catch (e) {
+            console.warn(`Error fetching post ${i}:`, e);
+          }
+        }
+        
+        // Calculate reputation score (0-100)
+        const basePoints = Math.min(userTotalPosts, 50); // 1 point per post, max 50
+        const safeBonus = Math.min(userSafePosts * 2, 40); // 2 points per safe post, max 40
+        const flaggedPenalty = userFlaggedPosts * 5; // -5 points per flagged post
+        const safetyRatio = userTotalPosts > 0 ? userSafePosts / userTotalPosts : 0;
+        const safetyBonus = Math.floor(safetyRatio * 10); // Up to 10 bonus points
+        
+        const score = Math.max(0, Math.min(100, basePoints + safeBonus + safetyBonus - flaggedPenalty));
+        
+        // Calculate tier (0-3)
+        let tier = 0;
+        if (score >= 76) tier = 3; // Platinum
+        else if (score >= 51) tier = 2; // Gold
+        else if (score >= 26) tier = 1; // Silver
+        else tier = 0; // Bronze
+        
+        setReputationData({
+          score: score.toString(),
+          tier: tier.toString(),
+          totalPosts: userTotalPosts.toString(),
+          safePosts: userSafePosts.toString(),
+          flaggedPosts: userFlaggedPosts.toString(),
+          lastUpdated: new Date()
+        });
+      } else {
+        // No contracts available at all
+        setReputationData({
+          score: '0',
+          tier: '0',
+          totalPosts: '0',
+          safePosts: '0',
+          flaggedPosts: '0',
+          lastUpdated: new Date()
+        });
+      }
     } catch (error) {
       console.error('Error fetching reputation:', error);
+      setReputationData({
+        score: '0',
+        tier: '0',
+        totalPosts: '0',
+        safePosts: '0',
+        flaggedPosts: '0',
+        lastUpdated: new Date()
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,6 +131,11 @@ const ReputationDashboard = ({ contracts, account }) => {
 
   const fetchUserSBT = async () => {
     try {
+      if (!contracts.reputationSBT) {
+        console.warn('ReputationSBT contract not available');
+        return;
+      }
+      
       const sbtData = await contracts.reputationSBT.getUserSBT(account);
       if (sbtData.tokenId.toString() !== '0') {
         setUserSBT({
@@ -61,6 +150,18 @@ const ReputationDashboard = ({ contracts, account }) => {
 
   const fetchRewards = async () => {
     try {
+      if (!contracts.incentiveSystem || !contracts.solToken) {
+        console.warn('Incentive or Token contract not available');
+        setRewards({
+          pendingRewards: '0',
+          totalEarned: '0',
+          balance: '0',
+          dailyRewardsLeft: '5',
+          nextClaimTime: new Date()
+        });
+        return;
+      }
+      
       const rewardInfo = await contracts.incentiveSystem.getRewardInfo(account);
       const balance = await contracts.solToken.balanceOf(account);
       
@@ -78,6 +179,13 @@ const ReputationDashboard = ({ contracts, account }) => {
       });
     } catch (error) {
       console.error('Error fetching rewards:', error);
+      setRewards({
+        pendingRewards: '0',
+        totalEarned: '0',
+        balance: '0',
+        dailyRewardsLeft: '5',
+        nextClaimTime: new Date()
+      });
     }
   };
 
@@ -95,13 +203,28 @@ const ReputationDashboard = ({ contracts, account }) => {
   };
 
   const mintSBT = async () => {
+    if (!contracts.reputationSBT) {
+      alert('ReputationSBT contract not available');
+      return;
+    }
+    
+    if (!reputationData || reputationData.score === '0') {
+      alert('You need reputation > 0 to mint an SBT. Create some posts first!');
+      return;
+    }
+    
     try {
       setLoading(true);
+      console.log('Minting SBT for:', account);
       const tx = await contracts.reputationSBT.mintOrUpgradeSBT(account);
+      console.log('Transaction sent:', tx.hash);
       await tx.wait();
+      console.log('Transaction confirmed!');
       await fetchUserSBT();
+      alert('SBT minted successfully!');
     } catch (error) {
       console.error('Error minting SBT:', error);
+      alert(`Failed to mint SBT: ${error.message || error}`);
     } finally {
       setLoading(false);
     }
@@ -139,8 +262,28 @@ const ReputationDashboard = ({ contracts, account }) => {
     );
   }
 
+  // Check if contracts are available
+  const reputationContractAvailable = contracts && contracts.reputationSystem;
+  const incentiveContractAvailable = contracts && contracts.incentiveSystem;
+
   return (
     <div className="reputation-dashboard">
+      {!reputationContractAvailable && (
+        <div className="warning-banner">
+          <p>ℹ️ Using fallback reputation calculation from SocialPosts contract.</p>
+          <p style={{fontSize: '0.9rem', marginTop: '0.5rem'}}>
+            Your reputation is calculated from real blockchain data. Deploy ReputationSystem contract for on-chain storage and advanced features.
+          </p>
+        </div>
+      )}
+      {!incentiveContractAvailable && (
+        <div className="warning-banner" style={{marginTop: '1rem'}}>
+          <p>⚠️ Token rewards system not available.</p>
+          <p style={{fontSize: '0.9rem', marginTop: '0.5rem'}}>
+            Deploy IncentiveSystem and SOLToken contracts to enable token rewards. (Leaderboard shows demo data)
+          </p>
+        </div>
+      )}
       <div className="dashboard-header">
         <h2>Reputation Dashboard</h2>
         <button onClick={updateReputation} disabled={loading} className="update-btn">
@@ -260,6 +403,19 @@ const ReputationDashboard = ({ contracts, account }) => {
           padding: 2rem;
           max-width: 1200px;
           margin: 0 auto;
+        }
+
+        .warning-banner {
+          background: rgba(255, 193, 7, 0.1);
+          border: 2px solid rgba(255, 193, 7, 0.3);
+          border-radius: 12px;
+          padding: 1rem 1.5rem;
+          margin-bottom: 2rem;
+          color: #ffc107;
+        }
+
+        .warning-banner p {
+          margin: 0;
         }
 
         .dashboard-header {
