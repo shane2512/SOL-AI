@@ -24,7 +24,7 @@ print('=== ENHANCED AGENT STARTUP END ===')
 
 # Hugging Face API setup
 HF_TOKEN = os.getenv("HF_TOKEN", "")
-HF_API_URL = "https://api-inference.huggingface.co/models/unitary/toxic-bert"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/unitary/toxic-bert"
 HF_HEADERS = {
     "Authorization": f"Bearer {HF_TOKEN}",
 } if HF_TOKEN else {}
