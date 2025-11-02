@@ -294,7 +294,9 @@ def update_user_reputation(user_address, is_flagged=False):
         })
         
         signed = acct.sign_transaction(tx)
-        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        # Support both Web3.py v5 and v6+ attribute names
+        raw_tx = getattr(signed, 'rawTransaction', None) or getattr(signed, 'raw_transaction', None)
+        tx_hash = w3.eth.send_raw_transaction(raw_tx)
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
         
         agent_stats["reputation_updates"] += 1
@@ -392,7 +394,9 @@ def handle_post(post_id, author, content):
                     signed = acct.sign_transaction(tx)
                     
                     print(f"   📤 Sending transaction to blockchain...")
-                    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+                    # Support both Web3.py v5 and v6+ attribute names
+                    raw_tx = getattr(signed, 'rawTransaction', None) or getattr(signed, 'raw_transaction', None)
+                    tx_hash = w3.eth.send_raw_transaction(raw_tx)
                     print(f"   🔗 Transaction hash: {tx_hash.hex()}")
                     
                     print(f"   ⏳ Waiting for transaction confirmation...")

@@ -23,8 +23,6 @@ dist/
 **/.env.development.local
 **/.env.test.local
 **/.env.production.local
-*.env
-SOL-AI-MODERATOR-AGENT.env
 
 
 # IDE and editor files
