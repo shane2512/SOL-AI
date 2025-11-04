@@ -56,6 +56,14 @@ export default function Home() {
   // Initialize Web3
   useEffect(() => {
     initWeb3();
+    
+    // Cleanup event listeners on unmount
+    return () => {
+      if (typeof window.ethereum !== 'undefined') {
+        window.ethereum.removeAllListeners('accountsChanged');
+        window.ethereum.removeAllListeners('chainChanged');
+      }
+    };
   }, []);
 
   const initWeb3 = async () => {
@@ -64,15 +72,7 @@ export default function Home() {
         const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
         setProvider(web3Provider);
 
-        // Check if already connected
-        const accounts = await web3Provider.listAccounts();
-        if (accounts.length > 0) {
-          setAccount(accounts[0]);
-          const web3Signer = web3Provider.getSigner();
-          setSigner(web3Signer);
-        }
-
-        // Setup contract for reading
+        // Setup contract for reading (using RPC provider, not wallet)
         const rpcProvider = new ethers.providers.JsonRpcProvider(SOMNIA_RPC);
         const abi = Array.isArray(SocialAbi) ? SocialAbi : (SocialAbi as any).abi;
         const contract = new ethers.Contract(SOCIAL_ADDR, abi, rpcProvider);
@@ -80,6 +80,29 @@ export default function Home() {
 
         // Load posts
         await loadPosts(contract);
+
+        // Listen for account changes
+        window.ethereum.on('accountsChanged', async (accounts: string[]) => {
+          if (accounts.length === 0) {
+            // User disconnected wallet
+            setAccount("");
+            setSigner(null);
+            setContracts(null);
+            toast("Wallet disconnected");
+          } else {
+            // User switched accounts
+            setAccount(accounts[0]);
+            const web3Signer = web3Provider.getSigner();
+            setSigner(web3Signer);
+            await initializeContracts(web3Signer);
+            toast("Account switched");
+          }
+        });
+
+        // Listen for chain changes
+        window.ethereum.on('chainChanged', () => {
+          window.location.reload();
+        });
       }
     } catch (error) {
       console.error("Error initializing Web3:", error);
@@ -181,7 +204,7 @@ export default function Home() {
       // Initialize all contracts with signer
       await initializeContracts(web3Signer);
       
-      toast.success("Wallet connected to Somnia!");
+      toast.success("Wallet connected!");
     } catch (error: any) {
       console.error("Error connecting wallet:", error);
       toast.error(error.message || "Failed to connect wallet");
