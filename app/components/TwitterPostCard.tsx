@@ -61,12 +61,12 @@ export default function TwitterPostCard({ post, authorName, onAuthorClick }: Twi
             </span>
             {post.flagged && (
               <span className="twitter-tweet-badge flagged">
-                🚩 Flagged
+                Flagged
               </span>
             )}
             {!post.flagged && (
               <span className="twitter-tweet-badge safe">
-                ✅ Safe
+                Safe
               </span>
             )}
           </div>

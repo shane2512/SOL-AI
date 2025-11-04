@@ -283,7 +283,7 @@ export default function Home() {
               toast.loading("Minting your tier badge...", { id: 'sbt' });
               const sbtTx = await contracts.reputationSBT.mint(account, tier);
               await sbtTx.wait();
-              toast.success(`🏆 ${['Bronze', 'Silver', 'Gold', 'Platinum'][tier]} badge minted!`, { id: 'sbt' });
+              toast.success(`${['Bronze', 'Silver', 'Gold', 'Platinum'][tier]} badge minted!`, { id: 'sbt' });
             }
           } catch (sbtError) {
             console.error("SBT minting error:", sbtError);
@@ -298,7 +298,7 @@ export default function Home() {
             // Get reward amount
             const balance = await contracts.solToken.balanceOf(account);
             const formatted = ethers.utils.formatEther(balance);
-            toast.success(`💰 Rewards earned! Balance: ${parseFloat(formatted).toFixed(2)} SOL AI`, { id: 'rewards' });
+            toast.success(`Rewards earned! Balance: ${parseFloat(formatted).toFixed(2)} SOL AI`, { id: 'rewards' });
           } catch (rewardError) {
             console.error("Reward distribution error:", rewardError);
             toast.dismiss('rewards');
@@ -362,9 +362,9 @@ export default function Home() {
             <div className="twitter-timeline-title">
               {activePage === 'home' && 'Home'}
               {activePage === 'flagged' && 'Flagged Posts'}
-              {activePage === 'reputation' && '🏆 Reputation Dashboard'}
-              {activePage === 'governance' && '⚖️ Governance'}
-              {activePage === 'profile' && '👤 Profile'}
+              {activePage === 'reputation' && 'Reputation Dashboard'}
+              {activePage === 'governance' && 'Governance'}
+              {activePage === 'profile' && 'Profile'}
             </div>
           </div>
 
@@ -398,7 +398,6 @@ export default function Home() {
           {activePage === 'reputation' && (
             !account ? (
               <div style={{ padding: '20px', textAlign: 'center' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</div>
                 <h3 style={{ fontSize: '20px', marginBottom: '12px' }}>Connect Wallet</h3>
                 <p style={{ color: 'var(--color-text-secondary)', marginBottom: '20px' }}>
                   Connect your wallet to view your reputation dashboard
@@ -424,7 +423,6 @@ export default function Home() {
             <div style={{ padding: '20px' }}>
               {!account ? (
                 <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>👤</div>
                   <h3 style={{ fontSize: '20px', marginBottom: '12px' }}>Connect Wallet</h3>
                   <p style={{ color: 'var(--color-text-secondary)', marginBottom: '20px' }}>
                     Connect your wallet to view your profile
@@ -476,7 +474,6 @@ export default function Home() {
           {activePage === 'governance' && (
             !account ? (
               <div style={{ padding: '20px', textAlign: 'center' }}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚖️</div>
                 <h3 style={{ fontSize: '20px', marginBottom: '12px' }}>Connect Wallet</h3>
                 <p style={{ color: 'var(--color-text-secondary)', marginBottom: '20px' }}>
                   Connect your wallet to participate in governance

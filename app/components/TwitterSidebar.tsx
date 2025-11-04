@@ -24,11 +24,11 @@ export default function TwitterSidebar({
   };
 
   const navItems = [
-    { id: 'home', icon: '🏠', label: 'Home' },
-    { id: 'flagged', icon: '🚩', label: 'Flagged', badge: flaggedCount },
-    { id: 'reputation', icon: '⭐', label: 'Reputation' },
-    { id: 'governance', icon: '⚖️', label: 'Governance' },
-    { id: 'profile', icon: '👤', label: 'Profile' },
+    { id: 'home', icon: 'H', label: 'Home' },
+    { id: 'flagged', icon: 'F', label: 'Flagged', badge: flaggedCount },
+    { id: 'reputation', icon: 'R', label: 'Reputation' },
+    { id: 'governance', icon: 'G', label: 'Governance' },
+    { id: 'profile', icon: 'P', label: 'Profile' },
   ];
 
   return (
@@ -39,7 +39,7 @@ export default function TwitterSidebar({
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        <div className="twitter-logo-icon">⚡</div>
+        <div className="twitter-logo-text">SOL-AI</div>
       </motion.div>
 
       {/* Navigation */}
@@ -76,7 +76,7 @@ export default function TwitterSidebar({
         whileTap={{ scale: 0.98 }}
       >
         <span className="twitter-post-btn-text">Post</span>
-        <span className="twitter-post-btn-icon">✍️</span>
+        <span className="twitter-post-btn-icon">+</span>
       </motion.button>
 
       {/* User Menu */}

@@ -19,7 +19,6 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
   const [loading, setLoading] = useState(false);
 
   const tierNames = ["Bronze", "Silver", "Gold", "Platinum"];
-  const tierEmojis = ["🥉", "🥈", "🥇", "💎"];
 
   useEffect(() => {
     if (contracts && account) {
@@ -63,7 +62,7 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
           animate={{ opacity: 1, y: 0 }}
         >
           <div className="twitter-widget-header">
-            <span>👤 Your Account</span>
+            <span>Your Account</span>
           </div>
           
           <div className="twitter-widget-item">
@@ -71,7 +70,7 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
               <div>
                 <div className="twitter-widget-title">Tier</div>
                 <div className="twitter-widget-subtitle">
-                  {tierEmojis[userTier]} {tierNames[userTier]}
+                  {tierNames[userTier]}
                 </div>
               </div>
             </div>
@@ -85,7 +84,7 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
                   {loading ? '...' : `${parseFloat(tokenBalance).toFixed(2)} tokens`}
                 </div>
               </div>
-              <div style={{ fontSize: '24px' }}>💰</div>
+              <div style={{ fontSize: '14px', color: 'var(--color-brand)' }}>$</div>
             </div>
           </div>
         </motion.div>
@@ -99,7 +98,7 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
         transition={{ delay: account ? 0.1 : 0 }}
       >
         <div className="twitter-widget-header">
-          <span>🤖 AI Moderation</span>
+          <span>AI Moderation</span>
         </div>
         
         <div className="twitter-widget-item">
@@ -109,7 +108,7 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
           <div className="twitter-widget-subtitle" style={{ 
             color: stats.agentStatus === 'active' ? 'var(--color-success)' : 'var(--color-text-secondary)' 
           }}>
-            {stats.agentStatus === 'active' ? '✅ Active' : '⚠️ Inactive'}
+            {stats.agentStatus === 'active' ? 'Active' : 'Inactive'}
           </div>
         </div>
 
@@ -140,7 +139,7 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
         transition={{ delay: 0.2 }}
       >
         <div className="twitter-widget-header">
-          <span>📊 Platform Stats</span>
+          <span>Platform Stats</span>
         </div>
         
         <div className="twitter-widget-item">
@@ -149,7 +148,7 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
               <div className="twitter-widget-title">Safe Posts</div>
               <div className="twitter-widget-subtitle">{stats.safePosts} posts</div>
             </div>
-            <div style={{ fontSize: '24px' }}>✅</div>
+            <div style={{ fontSize: '14px', color: 'var(--color-success)', fontWeight: '700' }}>SAFE</div>
           </div>
         </div>
 
@@ -159,7 +158,7 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
               <div className="twitter-widget-title">Flagged Posts</div>
               <div className="twitter-widget-subtitle">{stats.flaggedPosts} posts</div>
             </div>
-            <div style={{ fontSize: '24px' }}>🚩</div>
+            <div style={{ fontSize: '14px', color: 'var(--color-danger)', fontWeight: '700' }}>FLAG</div>
           </div>
         </div>
       </motion.div>
@@ -172,7 +171,7 @@ export default function TwitterWidgets({ stats, contracts, account }: TwitterWid
         transition={{ delay: 0.3 }}
       >
         <div className="twitter-widget-header">
-          <span>⛓️ Blockchain</span>
+          <span>Blockchain</span>
         </div>
         
         <div className="twitter-widget-item">

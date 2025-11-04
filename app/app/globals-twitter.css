@@ -105,6 +105,14 @@ body {
   color: var(--color-brand);
 }
 
+.twitter-logo-text {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--color-brand);
+  letter-spacing: -0.5px;
+  font-family: var(--font-primary);
+}
+
 .twitter-nav {
   flex: 1;
   margin-top: 4px;
@@ -136,12 +144,14 @@ body {
 }
 
 .twitter-nav-icon {
-  font-size: 26px;
+  font-size: 20px;
+  font-weight: 700;
   width: 26px;
   height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--color-text-primary);
 }
 
 .twitter-nav-label {
