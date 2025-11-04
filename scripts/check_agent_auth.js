@@ -4,8 +4,14 @@ const fs = require('fs');
 const path = require('path');
 
 const MODERATOR_ADDR = process.env.MODERATOR_ADDRESS || "0x6F8234C0c0330193BaB7bc079AB74d109367C2ed";
-const AGENT_KEY = process.env.AGENT_PRIVATE_KEY || "bca1a949dd18c49712217e3cea297f00d80ed2177de7d8d0048c0c358a0dae44";
+const AGENT_KEY = process.env.AGENT_PRIVATE_KEY;
 const RPC_URL = process.env.SOMNIA_RPC_URL || "https://dream-rpc.somnia.network";
+
+if (!AGENT_KEY) {
+    console.error('❌ ERROR: AGENT_PRIVATE_KEY not found in environment variables');
+    console.error('   Please set AGENT_PRIVATE_KEY in agent/.env file');
+    process.exit(1);
+}
 
 const moderatorAbi = JSON.parse(fs.readFileSync(path.join(__dirname, '../app/contracts/abis/Moderator.json'), 'utf8'));
 
