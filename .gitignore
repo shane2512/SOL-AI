@@ -164,9 +164,10 @@ contracts/broadcast/
 *.pem
 private_keys/
 
-# Documentation files (except README.md)
+# Documentation files (except README.md and BUILD.md)
 *.md
 !README.md
+!BUILD.md
 
 # Scripts directory
 scripts/
