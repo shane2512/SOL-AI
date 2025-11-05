@@ -163,3 +163,15 @@ contracts/broadcast/
 *.key
 *.pem
 private_keys/
+
+# Documentation files (except README.md)
+*.md
+!README.md
+
+# Scripts directory
+scripts/
+
+# Test files
+test-*.js
+test-*.py
+test-*.html

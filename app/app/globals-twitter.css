@@ -200,12 +200,15 @@ body {
   align-items: center;
   gap: 12px;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: all var(--transition-fast);
   width: 100%;
+  background: transparent;
+  border: 1px solid var(--border-primary);
 }
 
 .twitter-user-menu:hover {
   background: rgba(255, 255, 255, 0.03);
+  border-color: var(--border-hover);
 }
 
 .twitter-avatar {
@@ -234,14 +237,32 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .twitter-user-handle {
-  font-size: 15px;
+  font-size: 13px;
   color: var(--color-text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+/* SVG icon color */
+.twitter-user-menu svg {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+/* Connected state styling */
+.twitter-user-menu.connected {
+  border-color: rgba(29, 155, 240, 0.3);
+}
+
+.twitter-user-menu.connected:hover {
+  border-color: rgba(29, 155, 240, 0.5);
+  background: rgba(29, 155, 240, 0.05);
 }
 
 /* Timeline */

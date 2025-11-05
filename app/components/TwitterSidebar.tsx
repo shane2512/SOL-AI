@@ -81,13 +81,13 @@ export default function TwitterSidebar({
 
       {/* User Menu */}
       <motion.button
-        className="twitter-user-menu"
+        className={`twitter-user-menu ${account ? 'connected' : ''}`}
         onClick={onWalletClick}
         whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.03)' }}
         whileTap={{ scale: 0.98 }}
       >
-        <div className="twitter-avatar">
-          {getInitials(account)}
+        <div className="twitter-avatar" style={!account ? { background: 'var(--bg-secondary)' } : {}}>
+          {account ? getInitials(account) : 'W'}
         </div>
         <div className="twitter-user-info">
           <div className="twitter-user-name">
