@@ -1,18 +1,18 @@
-# 🏗️ SOL AI - Build Documentation
+# SOL AI - Build Documentation
 
-## 📖 Overview
+## Overview
 
 **SOL AI** is a decentralized social media platform that combines blockchain technology with AI-powered content moderation to create a transparent, censorship-resistant social network. Built on Somnia testnet, it features autonomous AI agents, on-chain reputation systems, token incentives, and community governance.
 
 ---
 
-## 🎯 Problem Statement
+## Problem Statement
 
 Traditional social media platforms suffer from centralized, opaque content moderation where decisions are made behind closed doors without transparency or accountability. SOL AI solves this by providing a **decentralized social network with transparent AI-powered moderation, on-chain reputation tracking, and community governance**—eliminating censorship while maintaining content quality.
 
 ---
 
-## 🏛️ Architecture
+## Architecture
 
 ### System Components
 
@@ -60,7 +60,7 @@ Traditional social media platforms suffer from centralized, opaque content moder
 
 ---
 
-## 📋 Deployed Smart Contracts
+## Deployed Smart Contracts
 
 All contracts are deployed on **Somnia Testnet** (Chain ID: 50312)
 
@@ -89,13 +89,13 @@ All contracts are deployed on **Somnia Testnet** (Chain ID: 50312)
 
 ---
 
-## 🔄 User Flow
+## User Flow
 
 ![SOL AI User Flow](./Untitled-2025-09-28-0104.svg)
 
 ### Detailed User Journey
 
-#### 1️⃣ **User Onboarding**
+#### 1. **User Onboarding**
 ```
 User → Connect MetaMask → Switch to Somnia Testnet → Access Platform
 ```
@@ -103,7 +103,7 @@ User → Connect MetaMask → Switch to Somnia Testnet → Access Platform
 - Platform detects network and prompts switch if needed
 - User profile created automatically on first interaction
 
-#### 2️⃣ **Content Creation**
+#### 2. **Content Creation**
 ```
 User → Create Post → Submit Transaction → Post Stored On-Chain
 ```
@@ -112,7 +112,7 @@ User → Create Post → Submit Transaction → Post Stored On-Chain
 - Post emitted as blockchain event
 - Post appears in feed immediately
 
-#### 3️⃣ **AI Moderation**
+#### 3. **AI Moderation**
 ```
 New Post Event → AI Agent Detects → Gemini Analysis → Moderation Decision
 ```
@@ -121,7 +121,7 @@ New Post Event → AI Agent Detects → Gemini Analysis → Moderation Decision
 - Toxicity score calculated (0-100%)
 - Decision made based on 25% threshold
 
-#### 4️⃣ **Moderation Action**
+#### 4. **Moderation Action**
 ```
 If Toxic (>25%) → Flag Post → Update Reputation (-5 points)
 If Safe (≤25%) → Approve Post → Update Reputation (+2 points)
@@ -130,7 +130,7 @@ If Safe (≤25%) → Approve Post → Update Reputation (+2 points)
 - Reputation updated in `ReputationSystemV2`
 - User notified of moderation result
 
-#### 5️⃣ **Rewards Distribution**
+#### 5. **Rewards Distribution**
 ```
 Safe Post → Calculate Rewards → Apply Multiplier → Mint Tokens
 ```
@@ -139,7 +139,7 @@ Safe Post → Calculate Rewards → Apply Multiplier → Mint Tokens
 - Tokens minted via `IncentiveSystem`
 - Balance updated in user wallet
 
-#### 6️⃣ **Reputation Milestones**
+#### 6. **Reputation Milestones**
 ```
 Reputation Threshold Reached → Mint SBT → Update Tier → Unlock Benefits
 ```
@@ -148,7 +148,7 @@ Reputation Threshold Reached → Mint SBT → Update Tier → Unlock Benefits
 - Higher tiers unlock better reward multipliers
 - Non-transferable achievement badges
 
-#### 7️⃣ **Community Governance**
+#### 7. **Community Governance**
 ```
 Flagged Post → User Appeals → Community Votes → Decision Executed
 ```
@@ -159,39 +159,39 @@ Flagged Post → User Appeals → Community Votes → Decision Executed
 
 ---
 
-## 🎨 Key Features
+## Key Features
 
-### 🔗 On-Chain Social Posts
+### On-Chain Social Posts
 - **Immutable Storage**: All posts stored permanently on blockchain
 - **Transparent History**: Complete audit trail of all content
 - **Censorship Resistant**: No central authority can delete posts
 - **Event-Driven**: Real-time updates via WebSocket events
 
-### 🤖 AI Content Moderation
+### AI Content Moderation
 - **Autonomous Agents**: Self-operating AI moderators
 - **Gemini AI Integration**: Advanced language understanding
 - **Multi-Model Fallback**: Reliability through redundancy
 - **Transparent Scoring**: All toxicity scores recorded on-chain
 
-### 🏆 Reputation System
+### Reputation System
 - **Dynamic Scoring**: Points earned/lost based on behavior
 - **Tier Progression**: 5 tiers from Newcomer to Leader
 - **Decay Mechanism**: Prevents gaming the system
 - **On-Chain Verification**: Tamper-proof reputation records
 
-### 🎖️ Soulbound NFTs
+### Soulbound NFTs
 - **Non-Transferable**: Achievement badges tied to account
 - **Milestone-Based**: Unlocked at reputation thresholds
 - **Visual Proof**: Display achievements in profile
 - **ERC-721 Standard**: Compatible with NFT infrastructure
 
-### 💰 Token Incentives
+### Token Incentives
 - **Quality Rewards**: Earn tokens for safe content
 - **Reputation Multipliers**: Higher tiers earn more
 - **Daily Caps**: Prevent spam and farming
 - **Automatic Distribution**: Instant token minting
 
-### 🗳️ Community Governance
+### Community Governance
 - **Appeal System**: Challenge moderation decisions
 - **Stake-Based**: Economic incentive for honest appeals
 - **Weighted Voting**: Reputation determines voting power
@@ -199,7 +199,7 @@ Flagged Post → User Appeals → Community Votes → Decision Executed
 
 ---
 
-## 🛠️ Build Instructions
+## Build Instructions
 
 ### Prerequisites
 
@@ -280,7 +280,7 @@ python flagging_api.py
 
 ---
 
-## 🚀 Production Deployment
+## Production Deployment
 
 ### Frontend Deployment (Vercel)
 
@@ -339,7 +339,7 @@ python flagging_api.py
 
 ---
 
-## 📊 Smart Contract Details
+## Smart Contract Details
 
 ### SocialPosts Contract
 ```solidity
@@ -407,7 +407,7 @@ function safeTransferFrom() reverts
 
 ---
 
-## 🔐 Security Features
+## Security Features
 
 ### Smart Contract Security
 - ✅ **OpenZeppelin Libraries**: Battle-tested implementations
@@ -432,7 +432,7 @@ function safeTransferFrom() reverts
 
 ---
 
-## 📈 Performance Metrics
+## Performance Metrics
 
 ### Blockchain Performance
 - **Block Time**: ~2 seconds (Somnia)
@@ -454,7 +454,7 @@ function safeTransferFrom() reverts
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ### Smart Contract Tests
 ```bash
@@ -479,15 +479,15 @@ python -m pytest --cov=. tests/
 
 ---
 
-## 🛣️ Roadmap
+## Roadmap
 
-### Phase 1: Foundation ✅
+### Phase 1: Foundation (Completed)
 - [x] Smart contract development
 - [x] AI agent implementation
 - [x] Frontend development
 - [x] Somnia testnet deployment
 
-### Phase 2: Enhancement ✅
+### Phase 2: Enhancement (Completed)
 - [x] Reputation system
 - [x] Token rewards
 - [x] Soulbound NFTs
@@ -507,7 +507,7 @@ python -m pytest --cov=. tests/
 
 ---
 
-## 📞 Support & Resources
+## Support & Resources
 
 ### Documentation
 - **GitHub**: https://github.com/shane2512/SOL-AI
@@ -525,13 +525,13 @@ python -m pytest --cov=. tests/
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Somnia Network** - High-performance blockchain infrastructure
 - **Google Gemini** - Advanced AI content analysis
@@ -543,6 +543,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ for a decentralized, transparent, and fair social media future**
+**Built for a decentralized, transparent, and fair social media future**
 
 *SOL AI - Where AI meets blockchain for better content moderation*
