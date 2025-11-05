@@ -94,10 +94,19 @@ body {
   border-radius: var(--radius-full);
   transition: background var(--transition-fast);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .twitter-logo:hover {
   background: rgba(255, 255, 255, 0.03);
+}
+
+.twitter-logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
 }
 
 .twitter-logo-icon {
@@ -108,7 +117,7 @@ body {
 .twitter-logo-text {
   font-size: 24px;
   font-weight: 900;
-  color: var(--color-brand);
+  color: white;
   letter-spacing: -0.5px;
   font-family: var(--font-primary);
 }
@@ -553,6 +562,48 @@ body {
   background: rgba(29, 155, 240, 0.1);
 }
 
+/* Reply button hover */
+.twitter-action-btn.reply:hover {
+  color: var(--color-brand);
+  background: rgba(29, 155, 240, 0.1);
+}
+
+/* Retweet button */
+.twitter-action-btn.retweet:hover {
+  color: var(--color-success);
+  background: rgba(0, 186, 124, 0.1);
+}
+
+.twitter-action-btn.retweet.active {
+  color: var(--color-success);
+}
+
+.twitter-action-btn.retweet.active svg {
+  fill: var(--color-success);
+}
+
+/* Like button */
+.twitter-action-btn.like:hover {
+  color: #F91880;
+  background: rgba(249, 24, 128, 0.1);
+}
+
+.twitter-action-btn.like.active {
+  color: #F91880;
+}
+
+.twitter-action-btn.like.active svg {
+  fill: #F91880;
+}
+
+/* Action button counts */
+.twitter-action-btn span {
+  font-size: 13px;
+  font-weight: 400;
+  min-width: 16px;
+  text-align: left;
+}
+
 /* Widgets */
 .twitter-widgets {
   width: 350px;
@@ -738,14 +789,172 @@ body {
 }
 
 @media (max-width: 768px) {
+  .twitter-layout {
+    flex-direction: column;
+  }
+
   .twitter-timeline {
     width: 100%;
     border-left: none;
     border-right: none;
+    min-height: calc(100vh - 60px);
+    padding-bottom: 60px;
   }
   
   .twitter-sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 60px;
+    flex-direction: row;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-primary);
+    padding: 0;
+    z-index: 100;
+    overflow-x: auto;
+  }
+
+  .twitter-logo {
     display: none;
+  }
+
+  .twitter-nav {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    margin: 0;
+    justify-content: space-around;
+  }
+
+  .twitter-nav-item {
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    margin: 0;
+    font-size: 10px;
+  }
+
+  .twitter-nav-icon {
+    font-size: 20px;
+  }
+
+  .twitter-nav-label {
+    display: block;
+    font-size: 10px;
+  }
+
+  .twitter-nav-badge {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 10px;
+  }
+
+  .twitter-post-btn {
+    display: none;
+  }
+
+  .twitter-user-menu {
+    display: none;
+  }
+
+  .twitter-timeline-header {
+    padding: 12px 16px;
+  }
+
+  .twitter-timeline-title {
+    font-size: 18px;
+  }
+
+  .twitter-compose {
+    padding: 12px;
+  }
+
+  .twitter-textarea {
+    font-size: 16px;
+    min-height: 80px;
+  }
+
+  .twitter-tweet {
+    padding: 12px;
+  }
+
+  .twitter-tweet-text {
+    font-size: 14px;
+  }
+
+  .twitter-modal {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .twitter-widgets {
+    display: none;
+  }
+
+  /* Mobile floating action button */
+  .mobile-fab {
+    position: fixed !important;
+    bottom: 80px !important;
+    right: 20px !important;
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 50% !important;
+    background: var(--btn-primary-bg) !important;
+    color: white !important;
+    border: none !important;
+    font-size: 24px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 12px rgba(29, 155, 240, 0.4) !important;
+    cursor: pointer !important;
+    z-index: 99 !important;
+  }
+
+  .mobile-fab:active {
+    transform: scale(0.95) !important;
+  }
+
+  /* Mobile header for wallet */
+  .mobile-header {
+    position: sticky !important;
+    top: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 12px 16px !important;
+    background: rgba(0, 0, 0, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid var(--border-primary) !important;
+    z-index: 50 !important;
+  }
+
+  .mobile-header-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+  }
+
+  .mobile-wallet-btn {
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-full);
+    color: var(--color-text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .mobile-wallet-btn.connected {
+    border-color: rgba(29, 155, 240, 0.3);
+    background: rgba(29, 155, 240, 0.1);
   }
 }
 

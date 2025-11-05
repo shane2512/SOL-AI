@@ -39,6 +39,11 @@ export default function TwitterSidebar({
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
+        <img 
+          src="/Untitled_design-removebg-preview.png" 
+          alt="SOL-AI Logo" 
+          className="twitter-logo-img"
+        />
         <div className="twitter-logo-text">SOL-AI</div>
       </motion.div>
 
@@ -52,7 +57,6 @@ export default function TwitterSidebar({
             whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.03)' }}
             whileTap={{ scale: 0.98 }}
           >
-            <span className="twitter-nav-icon">{item.icon}</span>
             <span className="twitter-nav-label">{item.label}</span>
             {item.badge !== undefined && item.badge > 0 && (
               <motion.span 

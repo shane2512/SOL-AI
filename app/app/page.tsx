@@ -367,6 +367,24 @@ export default function Home() {
     <>
       <Toaster position="top-center" />
       
+      {/* Mobile Header (visible only on mobile) */}
+      <div className="mobile-header" style={{ display: 'none' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img 
+            src="/Untitled_design-removebg-preview.png" 
+            alt="SOL-AI Logo" 
+            style={{ width: '32px', height: '32px' }}
+          />
+          <div className="mobile-header-title">SOL-AI</div>
+        </div>
+        <button 
+          className={`mobile-wallet-btn ${account ? 'connected' : ''}`}
+          onClick={connectWallet}
+        >
+          {account ? `${account.slice(0, 4)}...${account.slice(-4)}` : 'Connect'}
+        </button>
+      </div>
+
       <div className="twitter-layout">
         {/* Left Sidebar */}
         <TwitterSidebar
@@ -395,7 +413,6 @@ export default function Home() {
           {activePage === 'home' && (
             <div className="twitter-tabs">
               <button className="twitter-tab active">For you</button>
-              <button className="twitter-tab">Following</button>
             </div>
           )}
 

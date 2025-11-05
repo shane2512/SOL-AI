@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ethers } from 'ethers';
+import toast from 'react-hot-toast';
 
 interface EnhancedGovernancePanelProps {
   contracts: any;
@@ -20,13 +21,49 @@ export default function EnhancedGovernancePanel({ contracts, account, posts }: E
   }, [contracts, account]);
 
   const loadAppeals = async () => {
-    if (!contracts) return;
-
     try {
       setLoading(true);
-      // Load active appeals from governance contract
-      // This is a placeholder - implement based on your contract
-      setAppeals([]);
+      // Mock appeals data
+      const mockAppeals = [
+        {
+          id: 1,
+          postId: 15,
+          appellant: '0x1234...5678',
+          reason: 'This post was incorrectly flagged. It contains educational content about blockchain technology.',
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+          votingEnds: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          resolved: false,
+          yesVotes: 45,
+          noVotes: 23,
+          userVoted: false
+        },
+        {
+          id: 2,
+          postId: 22,
+          appellant: '0x2345...6789',
+          reason: 'AI misunderstood the context. This was a quote from a historical document.',
+          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+          votingEnds: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+          resolved: true,
+          upheld: true,
+          yesVotes: 78,
+          noVotes: 34,
+          userVoted: true
+        },
+        {
+          id: 3,
+          postId: 8,
+          appellant: '0x3456...7890',
+          reason: 'False positive detection. Post discusses content moderation best practices.',
+          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+          votingEnds: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          resolved: false,
+          yesVotes: 12,
+          noVotes: 8,
+          userVoted: false
+        }
+      ];
+      setAppeals(mockAppeals);
     } catch (error) {
       console.error("Error loading appeals:", error);
     } finally {
@@ -35,17 +72,31 @@ export default function EnhancedGovernancePanel({ contracts, account, posts }: E
   };
 
   const handleCreateAppeal = async () => {
-    if (!selectedPost || !appealReason.trim()) return;
+    if (!selectedPost || !appealReason.trim()) {
+      toast.error("Please select a post and provide a reason");
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const tx = await contracts.governanceSystem.createAppeal(
-        selectedPost.id,
-        appealReason
-      );
-      await tx.wait();
+      // Mock appeal creation
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      alert("Appeal created successfully!");
+      const newAppeal = {
+        id: appeals.length + 1,
+        postId: selectedPost.id,
+        appellant: account ? `${account.slice(0, 6)}...${account.slice(-4)}` : '0x0000...0000',
+        reason: appealReason,
+        createdAt: new Date(),
+        votingEnds: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        resolved: false,
+        yesVotes: 0,
+        noVotes: 0,
+        userVoted: false
+      };
+      
+      setAppeals([newAppeal, ...appeals]);
+      toast.success("Appeal created successfully!");
       setSelectedPost(null);
       setAppealReason("");
       await loadAppeals();
@@ -59,13 +110,25 @@ export default function EnhancedGovernancePanel({ contracts, account, posts }: E
 
   const handleVote = async (appealId: number, support: boolean) => {
     try {
-      const tx = await contracts.governanceSystem.vote(appealId, support);
-      await tx.wait();
-      alert("Vote submitted!");
-      await loadAppeals();
+      // Mock voting
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setAppeals(appeals.map(appeal => {
+        if (appeal.id === appealId && !appeal.userVoted && !appeal.resolved) {
+          return {
+            ...appeal,
+            yesVotes: support ? appeal.yesVotes + 1 : appeal.yesVotes,
+            noVotes: !support ? appeal.noVotes + 1 : appeal.noVotes,
+            userVoted: true
+          };
+        }
+        return appeal;
+      }));
+      
+      toast.success(`Vote ${support ? 'for' : 'against'} submitted!`);
     } catch (error: any) {
       console.error("Error voting:", error);
-      alert(error.message || "Failed to vote");
+      toast.error(error.message || "Failed to vote");
     }
   };
 

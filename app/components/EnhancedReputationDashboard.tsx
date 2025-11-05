@@ -13,13 +13,14 @@ export default function EnhancedReputationDashboard({ contracts, account }: Enha
   const [tier, setTier] = useState(0);
   const [tokenBalance, setTokenBalance] = useState("0");
   const [hasSBT, setHasSBT] = useState(false);
+  const [sbtTokenId, setSbtTokenId] = useState(0);
   const [loading, setLoading] = useState(true);
   const [minting, setMinting] = useState(false);
   const [claiming, setClaiming] = useState(false);
 
   const tierNames = ["Bronze", "Silver", "Gold", "Platinum"];
   const tierColors = ["#CD7F32", "#C0C0C0", "#FFD700", "#E5E4E2"];
-  const tierRanges = ["0-25", "26-50", "51-75", "76-100"];
+  const tierRanges = ["0-24", "25-49", "50-74", "75-100"];
 
   useEffect(() => {
     loadReputationData();
@@ -54,9 +55,19 @@ export default function EnhancedReputationDashboard({ contracts, account }: Enha
       const balance = await contracts.solToken.balanceOf(account);
       setTokenBalance(ethers.utils.formatEther(balance));
 
-      // Check if has SBT
-      const sbtBalance = await contracts.reputationSBT.balanceOf(account);
-      setHasSBT(sbtBalance.toNumber() > 0);
+      // Check if has SBT - check both balanceOf and userTokens mapping
+      try {
+        const sbtBalance = await contracts.reputationSBT.balanceOf(account);
+        const userToken = await contracts.reputationSBT.userTokens(account);
+        const tokenId = userToken.toNumber();
+        setSbtTokenId(tokenId);
+        setHasSBT(sbtBalance.toNumber() > 0 || tokenId > 0);
+        console.log('SBT Check:', { balance: sbtBalance.toNumber(), tokenId: tokenId, hasSBT: tokenId > 0 });
+      } catch (err) {
+        console.error('Error checking SBT:', err);
+        setHasSBT(false);
+        setSbtTokenId(0);
+      }
 
     } catch (error) {
       console.error("Error loading reputation data:", error);
@@ -71,8 +82,9 @@ export default function EnhancedReputationDashboard({ contracts, account }: Enha
   };
 
   const getNextTierProgress = () => {
-    const tierThresholds = [0, 26, 51, 76, 100];
-    if (tier >= 3) return 100; // Max tier
+    // Match smart contract thresholds: 0, 25, 50, 75
+    const tierThresholds = [0, 25, 50, 75];
+    if (tier >= 3) return 100; // Max tier (Platinum)
     
     const currentMin = tierThresholds[tier];
     const nextMin = tierThresholds[tier + 1];
@@ -93,7 +105,7 @@ export default function EnhancedReputationDashboard({ contracts, account }: Enha
       toast.loading("Minting your tier badge...", { id: 'mint-sbt' });
       const tx = await contracts.reputationSBT.mintOrUpgradeSBT(account);
       await tx.wait();
-      toast.success(`🏆 ${tierNames[tier]} badge minted successfully!`, { id: 'mint-sbt' });
+      toast.success(`${tierNames[tier]} badge minted successfully!`, { id: 'mint-sbt' });
       await loadReputationData();
     } catch (error: any) {
       console.error("Error minting SBT:", error);
@@ -111,7 +123,7 @@ export default function EnhancedReputationDashboard({ contracts, account }: Enha
       toast.loading("Claiming rewards...", { id: 'claim-rewards' });
       const tx = await contracts.incentiveSystem.claimPostRewards();
       await tx.wait();
-      toast.success("💰 Rewards claimed successfully!", { id: 'claim-rewards' });
+      toast.success("Rewards claimed successfully!", { id: 'claim-rewards' });
       await loadReputationData();
     } catch (error: any) {
       console.error("Error claiming rewards:", error);
@@ -177,21 +189,29 @@ export default function EnhancedReputationDashboard({ contracts, account }: Enha
         <h2 style={{ fontSize: '32px', color: tierColors[tier], marginBottom: '8px' }}>
           {tierNames[tier]} Tier
         </h2>
-        <p style={{ fontSize: '16px', color: 'var(--color-text-secondary)' }}>
-          Reputation Score: {reputationScore}/100
+        <p style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+          {tierRanges[tier]} points
+        </p>
+        <p style={{ fontSize: '16px', color: 'var(--color-text-primary)' }}>
+          Your Score: {reputationScore}/100
         </p>
         <div style={{ marginTop: '16px', display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           {hasSBT ? (
-            <span style={{
-              background: tierColors[tier],
-              color: '#000',
-              padding: '8px 16px',
-              borderRadius: '20px',
-              fontSize: '14px',
-              fontWeight: '700'
-            }}>
-              ✅ Badge Owned
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+              <span style={{
+                background: tierColors[tier],
+                color: '#000',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                fontWeight: '700'
+              }}>
+                Badge Owned
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                Token ID: #{sbtTokenId}
+              </span>
+            </div>
           ) : (
             <button
               onClick={handleMintSBT}
@@ -208,7 +228,7 @@ export default function EnhancedReputationDashboard({ contracts, account }: Enha
                 opacity: minting ? 0.6 : 1,
               }}
             >
-              {minting ? 'Minting...' : `🏆 Mint ${tierNames[tier]} Badge`}
+              {minting ? 'Minting...' : `Mint ${tierNames[tier]} Badge`}
             </button>
           )}
         </div>
